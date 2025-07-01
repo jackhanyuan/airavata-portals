@@ -39,7 +39,7 @@ export const DatasetSearchInput = ({
 
     const timeout = setTimeout(async () => {
       try {
-        const response = await api.get(`${CONTROLLER.resources}/public/search`, {
+        const response = await api.get(`${CONTROLLER.resources}/search`, {
           params: {
             type: ResourceTypeEnum.DATASET,
             name: datasetSearch,

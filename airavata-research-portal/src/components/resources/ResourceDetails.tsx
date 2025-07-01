@@ -54,6 +54,8 @@ import {CONTROLLER} from "@/lib/controller";
 import {DatasetSpecificDetails} from "../datasets/DatasetSpecificDetails";
 import {ResourceOptions} from "@/components/resources/ResourceOptions.tsx";
 import {toaster} from "@/components/ui/toaster.tsx";
+import {PrivacyEnum} from "@/interfaces/PrivacyEnum.ts";
+import {PrivateResourceTooltip} from "@/components/resources/PrivateResourceTooltip.tsx";
 
 async function getResource(id: string) {
   const response = await api.get(`${CONTROLLER.resources}/public/${id}`);
@@ -148,13 +150,18 @@ const ResourceDetails = () => {
                   {resource.name}
                 </Heading>
 
-                <ResourceOptions
-                    resource={resource}
-                    onDeleteSuccess={goToResources}
-                    deleteable={true}
-                    onUnStarSuccess={() => {
-                    }}
-                />
+                <HStack>
+                  {resource.privacy === PrivacyEnum.PRIVATE &&
+                      <PrivateResourceTooltip/>
+                  }
+                  <ResourceOptions
+                      resource={resource}
+                      onDeleteSuccess={goToResources}
+                      deleteable={true}
+                      onUnStarSuccess={() => {
+                      }}
+                  />
+                </HStack>
 
               </HStack>
 

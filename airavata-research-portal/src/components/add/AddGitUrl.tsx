@@ -2,6 +2,8 @@ import {Button, Code, Input, Text, VStack} from "@chakra-ui/react";
 import {useState} from "react";
 import yaml from "js-yaml";
 import {CreateResourceRequest} from "@/interfaces/Requests/CreateResourceRequest";
+import {isPrivacyEnum, PrivacyEnum} from "@/interfaces/PrivacyEnum.ts";
+import {toaster} from "@/components/ui/toaster.tsx";
 
 export const AddGitUrl = ({
                             nextStage,
@@ -47,6 +49,16 @@ export const AddGitUrl = ({
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const parsed = yaml.load(fileContent) as any;
+
+      console.log(parsed);
+      if (!isPrivacyEnum(parsed.project.privacy)) {
+        toaster.create({
+          title: "Invalid `privacy` field",
+          description: `Received '${parsed.privacy}'. Valid values are 'PUBLIC' or 'PRIVATE'`,
+          type: "error"
+        })
+        return;
+      }
       setCreateResourceRequest({
         ...createResourceRequest,
         name: parsed.project.name,
@@ -54,6 +66,7 @@ export const AddGitUrl = ({
         description: parsed.project.description,
         tags: parsed.project.tags,
         authors: parsed.project.authors,
+        privacy: parsed.project.privacy as PrivacyEnum
       });
       nextStage();
     } catch (error) {
