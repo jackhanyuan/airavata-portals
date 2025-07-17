@@ -1,13 +1,13 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "airavata-django-portal"
-version = "0.1"
+version = "1.0.0"
 description = "The Airavata Django Portal is a web interface to the Apache Airavata API implemented using the Django web framework."
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.10"
 license = {text = "Apache License 2.0"}
 authors = [
   {name = "Apache Software Foundation", email = "dev@airavata.apache.org"}
@@ -26,7 +26,7 @@ dependencies = [
     "wagtailfontawesome",
     "jupyter",
     "papermill",
-    "airavata-django-portal-sdk"
+    "airavata-python-sdk < 3"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -35,7 +35,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
-    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.10",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Internet :: WWW/HTTP :: WSGI :: Application"
 ]
@@ -43,7 +43,16 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
     "flake8",
-    "flake8-isort"
+    "flake8-isort",
+    "autopep8",
+    "Markdown",
+    "mkdocs",
+    "mkautodoc",
+    "pycodestyle",
+    "Jinja2",
+    "pytest",
+    "pytest-django",
+    "tox"
 ]
 mysql = [
     "mysqlclient"
@@ -66,6 +75,5 @@ skip = ["migrations", ".git"]
 skip_gitignore = true
 known_third_party = ["airavata", "airavata_django_portal_sdk"]
 
-[tool.tox]
-# Tox does not natively read from pyproject.toml, but this is for documentation/reference
-envlist = ["py36", "py37", "py38", "py39", "py310"] 
+[tool.setuptools.packages.find]
+where = ["airavata_django_portal_commons", "airavata_django_portal_sdk", "django_airavata"] 
