@@ -1,6 +1,6 @@
 from django import template
 from django.conf import settings
-from wagtail.core.models import Page, Site
+from wagtail.models import Page, Site
 
 from django_airavata.wagtailapps.base.models import (
     Announcements,
@@ -23,8 +23,8 @@ def get_site_root(context):
     # This returns a core.Page. The main menu needs to have the site.root_page
     # defined else will return an object attribute error ('str' object has no
     # attribute 'get_children')
-    return Site.find_for_request(context['request']).root_page
-
+    site = Site.find_for_request(context['request'])
+    return site.root_page if site else None
 
 def has_menu_children(page):
     # This is used by the top_menu property
@@ -92,8 +92,7 @@ def breadcrumbs(context):
         # When on the home page, displaying breadcrumbs is irrelevant.
         ancestors = ()
     else:
-        ancestors = Page.objects.ancestor_of(
-            self, inclusive=True).filter(depth__gt=1)
+        ancestors = self.get_ancestors(inclusive=True).filter(depth__gt=1)
     return {
         'ancestors': ancestors,
         'request': context['request'],
@@ -176,7 +175,7 @@ def main_menu_navs(context):
     if NavExtra.objects.first() is not None:
         nav_extra = NavExtra.objects.first()
         # only return the nav_items that have 'include_in_main_menu' == yes
-        if nav_extra.nav and len(nav_extra.nav) > 0:
+        if nav_extra and nav_extra.nav and len(nav_extra.nav) > 0:
             nav = nav_extra.nav[0]
             nav_items = nav.value['nav_items']
             nav_items = filter(lambda n: n.value['include_in_main_menu'] == 'yes', nav_items)

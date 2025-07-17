@@ -2,7 +2,7 @@
 import json
 
 from django.core.management.base import BaseCommand
-from wagtail.core.models import PageRevision
+from wagtail.models import Revision as PageRevision
 
 
 class Command(BaseCommand):
@@ -11,10 +11,10 @@ class Command(BaseCommand):
     def handle(self, **options):
         fixed_count = 0
         for pr in PageRevision.objects.all():
-            content_json = json.loads(pr.content_json)
-            if content_json['content_type'] != pr.page.content_type.id:
+            content_json = json.loads(pr.content)
+            if pr.page and content_json['content_type'] != pr.page.content_type.id:
                 content_json['content_type'] = pr.page.content_type.id
-                pr.content_json = json.dumps(content_json)
+                pr.content = json.dumps(content_json)
                 pr.save()
                 fixed_count = fixed_count + 1
         if fixed_count > 0:

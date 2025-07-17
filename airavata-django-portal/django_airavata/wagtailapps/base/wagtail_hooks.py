@@ -4,12 +4,12 @@ from django.shortcuts import redirect
 from wagtail.admin.rich_text.converters.html_to_contentstate import (
     BlockElementHandler
 )
-from wagtail.core import hooks
+from wagtail import hooks
 
 logger = logging.getLogger(__name__)
 
 
-@hooks.register('register_rich_text_features')
+@hooks.register('register_rich_text_features') # type: ignore
 def register_custom_style_feature(features):
 
     features.default_features.insert(5, 'h1')
@@ -41,7 +41,7 @@ def register_custom_style_feature(features):
 DIRECT_SERVE_FILE_EXTENSIONS = ["pdf"]
 
 
-@hooks.register('before_serve_document')
+@hooks.register('before_serve_document') # type: ignore
 def direct_serve_document(document, request):
     try:
         file_extension = document.file.name.split(".")[-1]

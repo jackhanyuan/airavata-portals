@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import os
+from typing import Any
 
 from django.db import models
 from modelcluster.fields import ParentalKey
@@ -14,8 +15,8 @@ from wagtail.admin.edit_handlers import (
     StreamFieldPanel,
     TabbedInterface
 )
-from wagtail.core.fields import RichTextField, StreamField
-from wagtail.core.models import Orderable, Page
+from wagtail.fields import RichTextField, StreamField
+from wagtail.models import Orderable, Page
 from wagtail.images.edit_handlers import ImageChooserPanel
 from wagtail.snippets.models import register_snippet
 
@@ -165,14 +166,14 @@ class Navbar(models.Model):
         help_text='Provide a width for the logo',
         null=True,
         blank=True,
-        default='144',
+        default=144
     )
 
     logo_height = models.IntegerField(
         help_text='Provide a height for the logo',
         null=True,
         blank=True,
-        default='43'
+        default=43
     )
 
     logo_text = models.CharField(
@@ -391,8 +392,8 @@ class ExtraWebResources(ClusterableModel):
     def __str__(self):
         try:
             return "Extra Web Resources: {}".format(", ".join(
-                [os.path.basename(link.url) for link in self.css_links.all()] +
-                [os.path.basename(link.url) for link in self.js_links.all()]))
+                [os.path.basename(link.url) for link in self.css_links.all()] +  # type: ignore
+                [os.path.basename(link.url) for link in self.js_links.all()]))  # type: ignore
         except Exception:
             return "Extra Web Resources"
 
@@ -602,13 +603,13 @@ class HomePage(Page):
         choices=boolean_choices,
         max_length=5,
         help_text="Choose yes if you want to display the navbar on home page and no if you don't want to.",
-        default=True)
+        default="yes")
 
     show_nav_extra = models.CharField(
         choices=boolean_choices,
         max_length=5,
         help_text="Choose yes if you want the secondary navbar to show on home page or no if you don't want to",
-        default=True)
+        default="yes")
 
     show_footer = models.CharField(
         choices=boolean_choices,

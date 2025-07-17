@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
 
     # wagtail related apps
+    'wagtail.locales',
     'wagtail.contrib.forms',
     'wagtail.contrib.redirects',
     'wagtail.embeds',
@@ -61,7 +62,7 @@ INSTALLED_APPS = [
     'wagtail.images',
     'wagtail.search',
     'wagtail.admin',
-    'wagtail.core',
+    'wagtail',
     'wagtail.contrib.styleguide',
 
     # wagtail third party dependencies
@@ -194,6 +195,7 @@ FILE_UPLOAD_HANDLERS = [
     'django.core.files.uploadhandler.MemoryFileUploadHandler',
     'django_airavata.uploadhandler.MaxFileSizeTemporaryFileUploadHandler',
 ]
+FILE_UPLOAD_TEMP_DIR = '/tmp'
 
 # Django max file size
 DATA_UPLOAD_MAX_MEMORY_SIZE =  64 * 1024 * 1024  # 64 MB
@@ -242,6 +244,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Wagtail related stuff
 WAGTAIL_SITE_NAME = 'Django Airavata Portal'
+WAGTAILADMIN_BASE_URL = 'http://localhost:8000'
 
 WAGTAILIMAGES_JPEG_QUALITY = 100
 
@@ -376,10 +379,6 @@ LOGGING = {
         'verbose': {
             'format': '[%(asctime)s %(name)s:%(lineno)d %(levelname)s] %(message)s',
         },
-        'verbose-safe': {
-            '()': 'anticrlf.LogFormatter',
-            'format': '[%(asctime)s %(name)s:%(lineno)d %(levelname)s] %(message)s',
-        },
     },
     'handlers': {
         # Log everything to the console when DEBUG=True
@@ -392,7 +391,7 @@ LOGGING = {
         'console': {
             'filters': ['require_debug_false'],
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose-safe',
+            'formatter': 'verbose',
             'level': 'INFO'
         },
         'mail_admins': {
