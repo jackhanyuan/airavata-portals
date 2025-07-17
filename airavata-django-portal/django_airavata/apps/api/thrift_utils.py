@@ -69,16 +69,16 @@ class ThriftEnumField(Field):
     def to_representation(self, obj):
         if obj is None:
             return None
-        return self.enumClass._VALUES_TO_NAMES[obj]
+        return obj.name
 
     def to_internal_value(self, data):
         if self.allow_null and data is None:
             return None
-        if data not in self.enumClass._NAMES_TO_VALUES:
+        if data not in self.enumClass.__members__:
             raise ValidationError(
                 "Not an allowed name of enum {}".format(
                     self.enumClass.__name__))
-        return self.enumClass._NAMES_TO_VALUES.get(data, None)
+        return self.enumClass[data]
 
 
 def create_serializer(thrift_data_type, enable_date_time_conversion=False, **kwargs):

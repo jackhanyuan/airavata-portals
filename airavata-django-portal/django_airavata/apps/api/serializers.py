@@ -673,7 +673,22 @@ class ComputeResourceReservationSerializer(
 
 class GroupComputeResourcePreferenceSerializer(
         thrift_utils.create_serializer_class(GroupComputeResourcePreference)):
-    reservations = ComputeResourceReservationSerializer(many=True)
+    reservations = serializers.SerializerMethodField()
+
+    def get_reservations(self, obj):
+        try:
+            if (
+                obj.specificPreferences and
+                getattr(obj.specificPreferences, 'slurm', None) and
+                getattr(obj.specificPreferences.slurm, 'reservations', None)
+            ):
+                return ComputeResourceReservationSerializer(
+                    obj.specificPreferences.slurm.reservations, many=True
+                ).data
+            else:
+                return []
+        except AttributeError:
+            return []
 
 
 class GroupResourceProfileSerializer(

@@ -303,14 +303,12 @@ class ExperimentSearchViewSet(mixins.ListModelMixin, GenericAPIBackedViewSet):
 
     def get_list(self):
         view = self
-
-        filters = {}
-        for filter_item in self.request.query_params.items():
-            if filter_item[0] in ExperimentSearchFields._NAMES_TO_VALUES:
-                # Lookup enum value for this ExperimentSearchFields
-                search_field = ExperimentSearchFields._NAMES_TO_VALUES[
-                    filter_item[0]]
-                filters[search_field] = filter_item[1]
+        
+        filters = {
+            ExperimentSearchFields[name].value: val
+            for name, val in self.request.query_params.items()
+            if name in ExperimentSearchFields.__members__
+        }
 
         class ExperimentSearchResultIterator(APIResultIterator):
             def get_results(self, limit=-1, offset=0):
