@@ -449,7 +449,7 @@ def get_data_product_metadata(request, data_product=None, data_product_uri=None)
             params={'product-uri': data_product.productUri})
         data = resp.json()
         file = {
-            "name": os.path.basename(path),
+            "name": os.path.basename(path) if path else "",
             # FIXME: since this isn't the true relative path, going to leave out for now
             # "path": path,
             "resource_path": path,

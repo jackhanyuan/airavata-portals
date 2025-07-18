@@ -24,6 +24,8 @@ class MFTUserStorageProvider(UserStorageProvider, ProvidesDownloadUrl):
         self.base_resource_path = base_resource_path
 
     def exists(self, resource_path):
+        if not self.mft_api_endpoint:
+            raise ValueError("MFT API endpoint not configured")
         with grpc.insecure_channel(self.mft_api_endpoint) as channel:
             child_path = self._get_child_path(resource_path)
             # TODO: is this still needed?
@@ -60,6 +62,8 @@ class MFTUserStorageProvider(UserStorageProvider, ProvidesDownloadUrl):
             return child_path in map(lambda f: f.friendlyName, list(response.directories) + list(response.files))
 
     def get_metadata(self, resource_path):
+        if not self.mft_api_endpoint:
+            raise ValueError("MFT API endpoint not configured")
         with grpc.insecure_channel(self.mft_api_endpoint) as channel:
             child_path = self._get_child_path(resource_path)
             stub = MFTApi_pb2_grpc.MFTApiServiceStub(channel)
@@ -137,6 +141,8 @@ class MFTUserStorageProvider(UserStorageProvider, ProvidesDownloadUrl):
             return directories_data, files_data
 
     def is_file(self, resource_path):
+        if not self.mft_api_endpoint:
+            raise ValueError("MFT API endpoint not configured")
         with grpc.insecure_channel(self.mft_api_endpoint) as channel:
             child_path = self._get_child_path(resource_path)
             stub = MFTApi_pb2_grpc.MFTApiServiceStub(channel)
@@ -162,6 +168,8 @@ class MFTUserStorageProvider(UserStorageProvider, ProvidesDownloadUrl):
                 return False
 
     def is_dir(self, resource_path):
+        if not self.mft_api_endpoint:
+            raise ValueError("MFT API endpoint not configured")
         with grpc.insecure_channel(self.mft_api_endpoint) as channel:
             child_path = self._get_child_path(resource_path)
             stub = MFTApi_pb2_grpc.MFTApiServiceStub(channel)
@@ -187,6 +195,8 @@ class MFTUserStorageProvider(UserStorageProvider, ProvidesDownloadUrl):
                 return False
 
     def get_download_url(self, resource_path):
+        if not self.mft_api_endpoint:
+            raise ValueError("MFT API endpoint not configured")
         with grpc.insecure_channel(self.mft_api_endpoint) as channel:
             child_path = self._get_child_path(resource_path)
             stub = MFTApi_pb2_grpc.MFTApiServiceStub(channel)

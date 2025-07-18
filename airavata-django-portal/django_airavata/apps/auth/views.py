@@ -1,7 +1,7 @@
 import io
 import logging
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote, urlencode, urlparse
 
 import requests
@@ -142,9 +142,9 @@ def start_logout(request):
 
 
 def callback(request):
+    login_desktop = request.GET.get('login_desktop', "false") == "true"
+    idp_alias = request.GET.get('idp_alias')
     try:
-        login_desktop = request.GET.get('login_desktop', "false") == "true"
-        idp_alias = request.GET.get('idp_alias')
         user = authenticate(request=request, idp_alias=idp_alias)
 
         if user is not None:
@@ -426,7 +426,7 @@ def reset_password(request, code):
             "Reset password link is invalid. Please try again.")
         return redirect(reverse('django_airavata_auth:forgot_password'))
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     if now - password_reset_request.created_date > timedelta(days=1):
         password_reset_request.delete()
         messages.error(
@@ -588,7 +588,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False)
     def current(self, request: AiravataHttpRequest):
-        return redirect(reverse('django_airavata_auth:user-detail', kwargs={'pk': request.user.id}))
+        return redirect(reverse('django_airavata_auth:user-detail', kwargs={'pk': request.user.pk}))
 
     @action(methods=['post'], detail=True)
     def resend_email_verification(self, request: AiravataHttpRequest, pk=None):

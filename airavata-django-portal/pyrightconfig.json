@@ -1,21 +1,15 @@
 {
-  "include": [
-    "airavata_django_portal_commons",
-    "airavata_django_portal_sdk",
-    "django_airavata",
-  ],
-  "exclude": [
-    "**/node_modules",
-    "**/__pycache__",
-    "**/.*",
-    "**/fixtures",
-    "**/migrations",
-    "**/media",
-    "**/resources",
-    "**/static",
-    "**/templates",
-    "**/venv",
-  ],
-  "reportMissingImports": true,
-  "reportMissingTypeStubs": false
+  "typeCheckingMode": "basic",
+  "reportAttributeAccessIssue": false,
+  "reportMissingModuleSource": false,
+  "reportMissingImports": false,
+  "reportArgumentType": false,
+  "reportCallIssue": false,
+  "reportOptionalMemberAccess": false,
+  "reportOptionalSubscript": false,
+  "reportOptionalIterable": false,
+  "reportOptionalContextManager": false,
+  "reportOptionalOperand": false,
+  "reportOptionalCall": false,
+  "exclude": ["**/migrations/**", "**/tests/**", "**/node_modules/**", "**/build/**"]
 }

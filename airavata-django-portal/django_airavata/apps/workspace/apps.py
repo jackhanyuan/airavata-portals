@@ -5,12 +5,25 @@ class WorkspaceConfig(AiravataAppConfig):
     name = 'django_airavata.apps.workspace'
     label = 'django_airavata_workspace'
     verbose_name = 'Workspace'
-    app_order = 0
-    url_home = 'django_airavata_workspace:dashboard'
-    fa_icon_class = 'fa-flask'
-    app_description = """
+
+    @property
+    def app_order(self):
+        return 0
+
+    @property
+    def url_home(self):
+        return 'django_airavata_workspace:dashboard'
+
+    @property
+    def fa_icon_class(self):
+        return 'fa-flask'
+
+    @property
+    def app_description(self):
+        return """
         Launch applications and manage your experiments and projects.
     """
+
     nav = [
         {
             'label': 'Dashboard',

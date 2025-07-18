@@ -31,9 +31,9 @@ def can_fetch_intermediate_output(request, experiment: ExperimentModel, output_n
     jobs: list[JobModel] = []
     process: ProcessModel
     task: TaskModel
-    for process in experiment.processes:
-        for task in process.tasks:
-            for job in task.jobs:
+    for process in experiment.processes or []:
+        for task in process.tasks or []:
+            for job in task.jobs or []:
                 jobs.append(job)
 
     def latest_status_is_active(job: JobModel) -> bool:
@@ -47,6 +47,8 @@ def can_fetch_intermediate_output(request, experiment: ExperimentModel, output_n
     try:
         # Return True if process status is in a terminal state
         process_status = get_intermediate_output_process_status(request, experiment, output_name)
+        if process_status is None:
+            return True
         return process_status.state in [ProcessState.CANCELED, ProcessState.COMPLETED, ProcessState.FAILED]
     except Exception:
         # Return True since error here likely means that there is no currently running process
@@ -68,15 +70,18 @@ def get_intermediate_output_data_products(request, experiment: ExperimentModel, 
         most_recent_completed_process_output = None
         for process in output_fetching_processes:
             # Skip over any processes that aren't completed
+            if process.processStatuses is None:
+                continue
+            assert process.processStatuses is not None
             if (len(process.processStatuses) == 0 or process.processStatuses[-1].state != ProcessState.COMPLETED):
                 continue
-            for process_output in process.processOutputs:
+            for process_output in process.processOutputs or []:
                 if process_output.name == output_name:
                     most_recent_completed_process_output = process_output
                     break
             if most_recent_completed_process_output is not None:
                 break
-        if most_recent_completed_process_output is not None:
+        if most_recent_completed_process_output is not None and most_recent_completed_process_output.value:
             data_product_uris = []
             if most_recent_completed_process_output.value.startswith('airavata-dp://'):
                 data_product_uris = most_recent_completed_process_output.value.split(',')
@@ -89,9 +94,9 @@ def get_intermediate_output_data_products(request, experiment: ExperimentModel, 
 
 def _get_output_fetching_processes(experiment: ExperimentModel) -> list[ProcessModel]:
     "sort the processes (most recent first) and filter to just the output fetching ones"
-    processes: list[ProcessModel] = sorted(experiment.processes, key=lambda p: p.creationTime, reverse=True) if experiment.processes else []
+    processes: list[ProcessModel] = sorted(experiment.processes or [], key=lambda p: p.creationTime or 0, reverse=True)
     output_fetching_processes: list[ProcessModel] = []
     for process in processes:
-        if any(map(lambda t: t.taskType == TaskTypes.OUTPUT_FETCHING, process.tasks)):
+        if any(map(lambda t: t.taskType == TaskTypes.OUTPUT_FETCHING, process.tasks or [])):
             output_fetching_processes.append(process)
     return output_fetching_processes

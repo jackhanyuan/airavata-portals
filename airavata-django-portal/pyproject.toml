@@ -29,6 +29,7 @@ dependencies = [
   "papermill",
   "django-webpack-loader",
   "mysqlclient",
+  "grpcio",
 ]
 classifiers = [
   "Development Status :: 4 - Beta",

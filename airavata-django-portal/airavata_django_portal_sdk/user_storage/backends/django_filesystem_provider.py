@@ -139,10 +139,10 @@ class DjangoFileSystemProvider(UserStorageProvider):
 
     @property
     def datastore(self):
-        directory = os.path.join(self.directory, self.username)
-        owner_username = self.context.get('owner_username')
+        directory = os.path.join(self.directory, self.username) if self.directory and self.username else ""
+        owner_username = self.context.get('owner_username') if self.context else None
         # When the current user isn't the owner, set the directory based on the owner's username
-        if owner_username:
+        if owner_username and self.directory:
             directory = os.path.join(self.directory, owner_username)
         return _Datastore(directory=directory)
 
@@ -247,6 +247,8 @@ class _Datastore:
         """Return an experiment directory (full path) for the given experiment."""
         user_experiment_data_storage = self.storage
         if path is None:
+            assert project_name is not None
+            assert experiment_name is not None
             proj_dir_name = user_experiment_data_storage.get_valid_name(
                 project_name)
             # AIRAVATA-3245 Make project directory with correct permissions
@@ -282,13 +284,10 @@ class _Datastore:
     def _makedirs(self, dir_path):
         user_experiment_data_storage = self.storage
         full_path = user_experiment_data_storage.path(dir_path)
-        os.makedirs(
-            full_path,
-            mode=user_experiment_data_storage.directory_permissions_mode)
+        mode = getattr(user_experiment_data_storage, 'directory_permissions_mode', 0o755)
+        os.makedirs(full_path, mode=mode)
         # os.makedirs mode isn't always respected so need to chmod to be sure
-        os.chmod(
-            full_path,
-            mode=user_experiment_data_storage.directory_permissions_mode)
+        os.chmod(full_path, mode=mode)
 
     def list_user_dir(self, file_path):
         logger.debug(f"file_path={file_path}")

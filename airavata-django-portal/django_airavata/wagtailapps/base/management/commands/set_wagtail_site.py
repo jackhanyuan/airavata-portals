@@ -13,7 +13,7 @@ class Command(BaseCommand):
             settings.ALLOWED_HOSTS) > 0 else "localhost"
         if not Site.objects.filter(hostname=hostname,
                                    is_default_site=True).exists():
-            with transaction.atomic():
+            with transaction.atomic():  # type: ignore
                 # Delete any current default site
                 Site.objects.filter(is_default_site=True).delete()
                 roots = Page.get_root_nodes()

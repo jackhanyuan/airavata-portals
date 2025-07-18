@@ -118,7 +118,7 @@ class UserProfile(models.Model):
         fields = ExtendedUserProfileField.objects.filter(deleted=False)
         for field in fields:
             try:
-                value = self.extended_profile_values.filter(ext_user_profile_field=field).get()
+                value = ExtendedUserProfileValue.objects.get(ext_user_profile_field=field)
                 if not value.valid:
                     return False
             except ExtendedUserProfileValue.DoesNotExist:
@@ -178,7 +178,7 @@ class ExtendedUserProfileField(models.Model):
     required = models.BooleanField(default=True)
 
     def __str__(self) -> str:
-        return f"{self.name} ({self.id})"
+        return f"{self.name} ({self.pk})"
 
     @property
     def field_type(self):
@@ -220,7 +220,7 @@ class ExtendedUserProfileFieldChoice(models.Model):
         abstract = True
 
     def __str__(self) -> str:
-        return f"{self.display_text} ({self.id})"
+        return f"{self.display_text} ({self.pk})"
 
 
 class ExtendedUserProfileSingleChoiceFieldChoice(ExtendedUserProfileFieldChoice):
@@ -269,7 +269,6 @@ class ExtendedUserProfileValue(models.Model):
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
 
-
     @property
     def value_type(self):
         if hasattr(self, 'text'):
@@ -286,31 +285,38 @@ class ExtendedUserProfileValue(models.Model):
     @property
     def value_display(self):
         if self.value_type == 'text':
-            return self.text.text_value
+            return getattr(self, 'text_value', None)
         elif self.value_type == 'single_choice':
-            if self.single_choice.choice:
+            single_choice = getattr(self, 'single_choice', None)
+            assert single_choice is not None
+            if single_choice.choice:
                 try:
-                    choice = self.ext_user_profile_field.single_choice.choices.get(id=self.single_choice.choice)
+                    assert self.ext_user_profile_field is not None
+                    choice = getattr(self.ext_user_profile_field, 'single_choice').choices.get(id=single_choice.choice)
                     return choice.display_text
                 except ExtendedUserProfileSingleChoiceFieldChoice.DoesNotExist:
                     return None
-            elif self.single_choice.other_value:
-                return f"Other: {self.single_choice.other_value}"
+            elif single_choice.other_value:
+                return f"Other: {single_choice.other_value}"
         elif self.value_type == 'multi_choice':
             result = []
-            if self.multi_choice.choices:
-                mc_field = self.ext_user_profile_field.multi_choice
-                for choice_value in self.multi_choice.choices.all():
+            multi_choice = getattr(self, 'multi_choice', None)
+            assert multi_choice is not None
+            if multi_choice.choices:
+                mc_field = getattr(self.ext_user_profile_field, 'multi_choice')
+                for choice_value in multi_choice.choices.all():
                     try:
                         choice = mc_field.choices.get(id=choice_value.value)
                         result.append(choice.display_text)
                     except ExtendedUserProfileMultiChoiceFieldChoice.DoesNotExist:
                         continue
-            if self.multi_choice.other_value:
-                result.append(f"Other: {self.multi_choice.other_value}")
+            if multi_choice.other_value:
+                result.append(f"Other: {multi_choice.other_value}")
             return result
         elif self.value_type == 'user_agreement':
-            if self.user_agreement.agreement_value:
+            user_agreement = getattr(self, 'user_agreement', None)
+            assert user_agreement is not None
+            if user_agreement.agreement_value:
                 return "Yes"
             else:
                 return "No"
@@ -328,28 +334,37 @@ class ExtendedUserProfileValue(models.Model):
     @property
     def valid(self):
         # if the field is deleted, whatever the value, consider it valid
-        if self.ext_user_profile_field.deleted:
+        ext_user_profile_field = getattr(self, 'ext_user_profile_field', None)
+        assert ext_user_profile_field is not None
+        if ext_user_profile_field.deleted:
             return True
-        if self.ext_user_profile_field.required:
+        if ext_user_profile_field.required:
             if self.value_type == 'text':
-                return self.text.text_value and len(self.text.text_value.strip()) > 0
+                text_value = getattr(self, 'text_value', None)
+                return text_value and len(text_value.strip()) > 0
             if self.value_type == 'single_choice':
-                choice_exists = (self.single_choice.choice and
-                                 self.ext_user_profile_field.single_choice.choices
-                                 .filter(id=self.single_choice.choice).exists())
-                has_other = (self.ext_user_profile_field.single_choice.other and
-                             self.single_choice.other_value and
-                             len(self.single_choice.other_value.strip()) > 0)
+                single_choice = getattr(self, 'single_choice', None)
+                assert single_choice is not None
+                choice_exists = (single_choice.choice and
+                                 ext_user_profile_field.single_choice.choices
+                                 .filter(id=single_choice.choice).exists())
+                has_other = (ext_user_profile_field.single_choice.other and
+                             single_choice.other_value and
+                             len(single_choice.other_value.strip()) > 0)
                 return choice_exists or has_other
             if self.value_type == 'multi_choice':
-                choice_ids = list(map(lambda c: c.value, self.multi_choice.choices.all()))
-                choice_exists = self.ext_user_profile_field.multi_choice.choices.filter(id__in=choice_ids).exists()
-                has_other = (self.ext_user_profile_field.multi_choice.other and
-                             self.multi_choice.other_value and
-                             len(self.multi_choice.other_value.strip()) > 0)
+                multi_choice = getattr(self, 'multi_choice', None)
+                assert multi_choice is not None
+                choice_ids = list(map(lambda c: c.value, multi_choice.choices.all()))
+                choice_exists = ext_user_profile_field.multi_choice.choices.filter(id__in=choice_ids).exists()
+                has_other = (ext_user_profile_field.multi_choice.other and
+                             multi_choice.other_value and
+                             len(multi_choice.other_value.strip()) > 0)
                 return choice_exists or has_other
             if self.value_type == 'user_agreement':
-                return self.user_agreement.agreement_value is True
+                user_agreement = getattr(self, 'user_agreement', None)
+                assert user_agreement is not None
+                return user_agreement.agreement_value is True
         return True
 
 

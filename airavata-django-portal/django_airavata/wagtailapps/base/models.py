@@ -158,15 +158,13 @@ class Navbar(models.Model):
     logo_width = models.IntegerField(
         help_text='Provide a width for the logo',
         null=True,
-        blank=True,
-        default=144
+        blank=True
     )
 
     logo_height = models.IntegerField(
         help_text='Provide a height for the logo',
         null=True,
-        blank=True,
-        default=43
+        blank=True
     )
 
     logo_text = models.CharField(

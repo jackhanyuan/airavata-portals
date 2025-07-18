@@ -1887,10 +1887,15 @@ def link_output_view(request):
 
 def _generate_output_view_data(request):
     params = request.GET.copy()
-    provider_id = params.pop('provider-id')[0]
-    experiment_id = params.pop('experiment-id')[0]
-    experiment_output_name = params.pop('experiment-output-name')[0]
-    test_mode = ('test-mode' in params and params.pop('test-mode')[0] == "true")
+    provider_id = request.GET.get('provider-id', '')
+    experiment_id = request.GET.get('experiment-id', '')
+    experiment_output_name = request.GET.get('experiment-output-name', '')
+    test_mode = request.GET.get('test-mode', 'false') == "true"
+    # Remove these from params since we've already extracted them
+    params.pop('provider-id', None)
+    params.pop('experiment-id', None)
+    params.pop('experiment-output-name', None)
+    params.pop('test-mode', None)
     return output_views.generate_data(request,
                                       provider_id,
                                       experiment_output_name,

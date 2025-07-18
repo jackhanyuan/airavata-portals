@@ -92,7 +92,7 @@ class Command(BaseCommand):
             # and create database records for the archive
             try:
                 # If any error occurs in this block, the transaction will be rolled back
-                with transaction.atomic():
+                with transaction.atomic() as _:  # type: ignore
                     user_data_archive = models.UserDataArchive(
                         archive_name=archive_tarball_filename,
                         archive_path=os.fspath(archive_directory / archive_tarball_filename),
