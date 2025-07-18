@@ -57,7 +57,7 @@ def clone(request, experiment_id):
         # clone experiment
         cloned_experiment_id = request.airavata_client.cloneExperiment(
             request.authz_token, experiment_id,
-            "Clone of {}".format(experiment.experimentName), project_id)
+            f"Clone of {experiment.experimentName}", project_id)
         cloned_experiment = request.airavata_client.getExperiment(
             request.authz_token, cloned_experiment_id)
 
@@ -142,8 +142,8 @@ def _get_writeable_project(request, experiment):
         if _can_write(request, user_project.projectID):
             return user_project.projectID
     raise Exception(
-        "Could not find writeable project for user {} in "
-        "gateway {}".format(request.user.username, settings.GATEWAY_ID))
+        f"Could not find writeable project for user {request.user.username} in "
+        f"gateway {settings.GATEWAY_ID}")
 
 
 def _can_write(request, entity_id):
@@ -162,8 +162,7 @@ def _copy_cloned_experiment_input_uris(request, cloned_experiment):
             cloned_data_product = _copy_experiment_input_uri(request,
                                                              experiment_input.value)
             if cloned_data_product is None:
-                logger.warning("Setting cloned input {} to null".format(
-                    experiment_input.name))
+                logger.warning(f"Setting cloned input {experiment_input.name} to null")
                 experiment_input.value = None
             else:
                 experiment_input.value = cloned_data_product.productUri
@@ -176,8 +175,7 @@ def _copy_cloned_experiment_input_uris(request, cloned_experiment):
                                                                  data_product_uri)
                 if cloned_data_product is None:
                     logger.warning(
-                        "Omitting a cloned input value for {}".format(
-                            experiment_input.name))
+                        f"Omitting a cloned input value for {experiment_input.name}")
                 else:
                     cloned_data_product_uris.append(
                         cloned_data_product.productUri)
@@ -190,5 +188,5 @@ def _copy_experiment_input_uri(request, data_product_uri):
             request, data_product_uri=data_product_uri)
     else:
         logger.warning("Could not find file for source data "
-                       "product {}".format(data_product_uri))
+                       f"product {data_product_uri}")
         return None

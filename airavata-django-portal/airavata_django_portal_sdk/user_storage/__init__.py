@@ -23,7 +23,7 @@ from .api import (
     save_input_file,
     update_data_product_content,
     update_file_content,
-    user_file_exists
+    user_file_exists,
 )
 
 __all__ = [

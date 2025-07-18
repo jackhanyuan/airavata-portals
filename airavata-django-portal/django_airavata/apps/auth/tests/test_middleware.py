@@ -8,9 +8,7 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from django_airavata.apps.auth import models
-from django_airavata.apps.auth.middleware import (
-    user_profile_completeness_check
-)
+from django_airavata.apps.auth.middleware import user_profile_completeness_check
 
 
 class UserProfileCompletenessCheckTestCase(TestCase):

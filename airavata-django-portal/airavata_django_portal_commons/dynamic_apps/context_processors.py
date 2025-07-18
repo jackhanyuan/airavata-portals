@@ -1,7 +1,7 @@
 import copy
-from importlib import import_module
 import logging
 import re
+from importlib import import_module
 
 from airavata_django_portal_commons import dynamic_apps
 
@@ -56,7 +56,7 @@ def _get_default_url_home(app_config):
     urls = _get_app_urls(app_config)
     app_name = _get_url_app_name(app_config)
     logger.warning(
-        "Custom Django app {} has no URL namespace " "defined".format(app_config.label)
+        f"Custom Django app {app_config.label} has no URL namespace " "defined"
     )
     first_named_url = None
     for urlpattern in urls.urlpatterns:

@@ -92,7 +92,7 @@ class UserSerializer(serializers.ModelSerializer):
             request.build_absolute_uri(reverse('django_airavata_auth:user_profile')) +
             '?' + urlencode({"code": pending_email_change.verification_code}))
         logger.debug(
-            "verification_uri={}".format(verification_uri))
+            f"verification_uri={verification_uri}")
 
         context = Context({
             "username": pending_email_change.user.username,
@@ -160,13 +160,15 @@ class ExtendedUserProfileFieldSerializer(serializers.ModelSerializer):
             # add choices
             for choice in choices:
                 choice.pop('id', None)
-                instance.choices.create(**choice)
+                models.ExtendedUserProfileSingleChoiceFieldChoice.objects.create(
+                    single_choice_field=instance, **choice)
         elif field_type == 'multi_choice':
             instance = models.ExtendedUserProfileMultiChoiceField.objects.create(**validated_data, other=other)
             # add choices
             for choice in choices:
                 choice.pop('id', None)
-                instance.choices.create(**choice)
+                models.ExtendedUserProfileMultiChoiceFieldChoice.objects.create(
+                    multi_choice_field=instance, **choice)
         elif field_type == 'user_agreement':
             instance = models.ExtendedUserProfileAgreementField.objects.create(**validated_data, checkbox_label=checkbox_label)
         else:
@@ -174,7 +176,7 @@ class ExtendedUserProfileFieldSerializer(serializers.ModelSerializer):
         # create links
         for link in links:
             link.pop('id', None)
-            instance.links.create(**link)
+            models.ExtendedUserProfileFieldLink.objects.create(field=instance, **link)
         return instance
 
     def update(self, instance, validated_data):

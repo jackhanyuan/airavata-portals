@@ -14,16 +14,14 @@ from airavata.model.data.replica.ttypes import (
     DataProductType,
     DataReplicaLocationModel,
     ReplicaLocationCategory,
-    ReplicaPersistentType
+    ReplicaPersistentType,
 )
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
 
 from airavata_django_portal_sdk import remoteapi
-from airavata_django_portal_sdk.user_storage.backends.base import (
-    ProvidesDownloadUrl
-)
+from airavata_django_portal_sdk.user_storage.backends.base import ProvidesDownloadUrl
 
 from ..util import convert_iso8601_to_datetime
 
@@ -513,9 +511,7 @@ def delete(request, data_product=None, data_product_uri=None):
             _delete_data_product(data_product.ownerName, path, storage_resource_id)
         except Exception:
             logger.exception(
-                "Unable to delete file {} for data product uri {}".format(
-                    path, data_product.productUri
-                ),
+                f"Unable to delete file {path} for data product uri {data_product.productUri}",
                 extra={'request': request}
             )
             raise
@@ -864,8 +860,7 @@ def _determine_content_type(full_path, content_type=None, backend=None):
 def _create_replica_location(full_path, file_name, storage_resource_id):
     data_replica_location = DataReplicaLocationModel()
     data_replica_location.storageResourceId = storage_resource_id
-    data_replica_location.replicaName = "{} gateway data store copy".format(
-        file_name)
+    data_replica_location.replicaName = f"{file_name} gateway data store copy"
     data_replica_location.replicaLocationCategory = (
         ReplicaLocationCategory.GATEWAY_DATA_STORE
     )

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 
 from django.conf import settings
@@ -17,7 +19,7 @@ USER_PROFILE_COMPLETED_TEMPLATE = 6
 class EmailVerification(models.Model):
     username = models.CharField(max_length=64)
     verification_code = models.CharField(
-        max_length=36, unique=True, default=uuid.uuid4)
+        max_length=36, unique=True, default=str(uuid.uuid4()))
     created_date = models.DateTimeField(auto_now_add=True)
     verified = models.BooleanField(default=False)
     next = models.CharField(max_length=255, null=True)
@@ -49,7 +51,7 @@ class EmailTemplate(models.Model):
 class PasswordResetRequest(models.Model):
     username = models.CharField(max_length=64)
     reset_code = models.CharField(
-        max_length=36, unique=True, default=uuid.uuid4)
+        max_length=36, unique=True, default=str(uuid.uuid4()))
     created_date = models.DateTimeField(auto_now_add=True)
 
 
@@ -161,7 +163,7 @@ class PendingEmailChange(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     email_address = models.EmailField()
     verification_code = models.CharField(
-        max_length=36, unique=True, default=uuid.uuid4)
+        max_length=36, unique=True, default=str(uuid.uuid4()))
     created_date = models.DateTimeField(auto_now_add=True)
     verified = models.BooleanField(default=False)
 
@@ -266,6 +268,7 @@ class ExtendedUserProfileValue(models.Model):
     user_profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name="extended_profile_values")
     created_date = models.DateTimeField(auto_now_add=True)
     updated_date = models.DateTimeField(auto_now=True)
+
 
     @property
     def value_type(self):

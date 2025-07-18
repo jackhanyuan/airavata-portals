@@ -84,8 +84,7 @@ def airavata_app_registry(request):
                      app.label not in settings.HIDDEN_AIRAVATA_APPS]
     # Sort by app_order then by verbose_name (case-insensitive)
     airavata_apps.sort(
-        key=lambda app: "{:09}-{}".format(app.app_order,
-                                          app.verbose_name.lower()))
+        key=lambda app: f"{app.app_order:09}-{app.verbose_name.lower()}")
     current_app = _get_current_app(request, airavata_apps)
 
     return {

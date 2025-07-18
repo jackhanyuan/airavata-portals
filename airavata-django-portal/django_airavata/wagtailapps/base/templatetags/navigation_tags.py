@@ -1,6 +1,6 @@
 from django import template
 from django.conf import settings
-from wagtail.models import Page, Site
+from wagtail.models import Site
 
 from django_airavata.wagtailapps.base.models import (
     Announcements,
@@ -11,7 +11,7 @@ from django_airavata.wagtailapps.base.models import (
     GatewayIcon,
     GatewayTitle,
     Navbar,
-    NavExtra
+    NavExtra,
 )
 
 register = template.Library()

@@ -2,8 +2,10 @@
 import logging
 import os
 import time
+from typing import TYPE_CHECKING
 
 import requests
+import requests.auth
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.views.decorators.debug import sensitive_variables
@@ -16,8 +18,11 @@ from . import models, utils
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from django_airavata.stubs import AiravataHttpRequest
 
-class KeycloakBackend(object):
+
+class KeycloakBackend:
     """Django authentication backend for Keycloak."""
 
     # mask all local variables from error emails since they contain the user's
@@ -26,7 +31,7 @@ class KeycloakBackend(object):
     # listed variable masking to library function calls
     @sensitive_variables()
     def authenticate(self,
-                     request=None,
+                     request: AiravataHttpRequest,
                      username=None,
                      password=None,
                      refresh_token=None,
@@ -43,7 +48,7 @@ class KeycloakBackend(object):
                 user = self._process_userinfo(request, userinfo)
                 access_token = token['access_token']
             elif 'HTTP_AUTHORIZATION' in request.META:
-                bearer, token = request.META.get('HTTP_AUTHORIZATION').split()
+                bearer, token = request.META.get('HTTP_AUTHORIZATION', '').split()
                 if bearer != "Bearer":
                     raise Exception("Unexpected Authorization header")
                 # implicitly validate token by using it to get userinfo
@@ -132,7 +137,7 @@ class KeycloakBackend(object):
         verify_ssl = settings.KEYCLOAK_VERIFY_SSL
         state = request.session['OAUTH2_STATE']
         redirect_uri = request.session['OAUTH2_REDIRECT_URI']
-        logger.debug("state={}".format(state))
+        logger.debug(f"state={state}")
         oauth2_session = OAuth2Session(client_id,
                                        scope='openid profile email',
                                        redirect_uri=redirect_uri,
@@ -153,7 +158,7 @@ class KeycloakBackend(object):
         return token, userinfo
 
     def _get_token_and_userinfo_from_refresh_token(self,
-                                                   request,
+                                                   request: 'AiravataHttpRequest',
                                                    refresh_token=None):
         client_id = settings.KEYCLOAK_CLIENT_ID
         client_secret = settings.KEYCLOAK_CLIENT_SECRET
@@ -203,7 +208,7 @@ class KeycloakBackend(object):
 
     def _process_token(self, request, token):
         # TODO validate the JWS signature
-        logger.debug("token: {}".format(token))
+        logger.debug(f"token: {token}")
         now = time.time()
         # Put access_token into session to be used for authenticating with API
         # server
@@ -214,7 +219,7 @@ class KeycloakBackend(object):
         sess['REFRESH_TOKEN_EXPIRES_AT'] = now + token['refresh_expires_in']
 
     def _process_userinfo(self, request, userinfo):
-        logger.debug("userinfo: {}".format(userinfo))
+        logger.debug(f"userinfo: {userinfo}")
         sub = userinfo['sub']
         username = userinfo['preferred_username']
         email = userinfo.get('email', '')

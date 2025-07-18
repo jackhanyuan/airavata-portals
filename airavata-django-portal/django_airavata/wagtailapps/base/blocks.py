@@ -8,7 +8,7 @@ from wagtail.blocks import (
     RichTextBlock,
     StreamBlock,
     StructBlock,
-    TextBlock
+    TextBlock,
 )
 from wagtail.documents.blocks import DocumentChooserBlock
 from wagtail.embeds.blocks import EmbedBlock

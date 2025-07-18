@@ -6,17 +6,11 @@ from contextlib import contextmanager
 import thrift_connector.connection_pool as connection_pool
 from airavata.api import Airavata
 from airavata.service.profile.groupmanager.cpi import GroupManagerService
-from airavata.service.profile.groupmanager.cpi.constants import (
-    GROUP_MANAGER_CPI_NAME
-)
+from airavata.service.profile.groupmanager.cpi.constants import GROUP_MANAGER_CPI_NAME
 from airavata.service.profile.iam.admin.services.cpi import IamAdminServices
-from airavata.service.profile.iam.admin.services.cpi.constants import (
-    IAM_ADMIN_SERVICES_CPI_NAME
-)
+from airavata.service.profile.iam.admin.services.cpi.constants import IAM_ADMIN_SERVICES_CPI_NAME
 from airavata.service.profile.tenant.cpi import TenantProfileService
-from airavata.service.profile.tenant.cpi.constants import (
-    TENANT_PROFILE_CPI_NAME
-)
+from airavata.service.profile.tenant.cpi.constants import TENANT_PROFILE_CPI_NAME
 from airavata.service.profile.user.cpi import UserProfileService
 from airavata.service.profile.user.cpi.constants import USER_PROFILE_CPI_NAME
 from django.conf import settings
@@ -150,8 +144,8 @@ def get_thrift_client(host, port, is_secure, client_generator):
 
     try:
         transport.open()
-        log.debug("Thrift connection opened to {}:{}, "
-                  "secure={}".format(host, port, is_secure))
+        log.debug(f"Thrift connection opened to {host}:{port}, "
+                  f"secure={is_secure}")
         try:
             yield client
         except Exception as e:
@@ -161,14 +155,13 @@ def get_thrift_client(host, port, is_secure, client_generator):
         finally:
             if transport.isOpen():
                 transport.close()
-                log.debug("Thrift connection closed to {}:{}, "
-                          "secure={}".format(host, port, is_secure))
+                log.debug(f"Thrift connection closed to {host}:{port}, "
+                          f"secure={is_secure}")
     except ThriftClientException as tce:
         # Allow thrift client errors to bubble up
         raise tce
     except Exception as e:
-        msg = "Failed to open thrift connection to {}:{}, secure={}".format(
-            host, port, is_secure)
+        msg = f"Failed to open thrift connection to {host}:{port}, secure={is_secure}"
         log.debug(msg)
         raise ThriftConnectionException(msg) from e
 
@@ -196,7 +189,7 @@ class CustomThriftClient(connection_pool.ThriftClient):
         try:
             self.client.getAPIVersion()
         except Exception as e:
-            log.debug("getAPIVersion failed: {}".format(str(e)))
+            log.debug(f"getAPIVersion failed: {str(e)}")
             raise
 
 

@@ -3,9 +3,9 @@ import os
 from collections.__init__ import OrderedDict
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytz
-from airavata_django_portal_sdk import user_storage
 from django.conf import settings
 from django.http import Http404
 from django.http.request import QueryDict
@@ -14,7 +14,8 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from rest_framework.viewsets import GenericViewSet
-from typing import TYPE_CHECKING
+
+from airavata_django_portal_sdk import user_storage
 
 if TYPE_CHECKING:
     from django_airavata.stubs import AiravataHttpRequest
@@ -105,7 +106,7 @@ class APIBackedViewSet(mixins.CreateModelMixin,
     pass
 
 
-class APIResultIterator(object):
+class APIResultIterator:
     """
     Iterable container over API results which allow limit/offset style slicing.
     """
@@ -121,8 +122,7 @@ class APIResultIterator(object):
 
     def __iter__(self):
         results = self.get_results(self.limit, self.offset)
-        for result in results:
-            yield result
+        yield from results
 
     def __getitem__(self, key):
         if isinstance(key, slice):
@@ -143,7 +143,7 @@ class APIResultPagination(pagination.LimitOffsetPagination):
 
     def paginate_queryset(self, queryset, request: 'AiravataHttpRequest', view=None):
         assert isinstance(
-            queryset, APIResultIterator), "queryset is not an APIResultIterator: {}".format(queryset)
+            queryset, APIResultIterator), f"queryset is not an APIResultIterator: {queryset}"
         self.query_params = queryset.query_params.copy()
         self.limit = self.get_limit(request)
         if self.limit is None or not isinstance(self.limit, int):
@@ -213,8 +213,7 @@ def convert_utc_iso8601_to_date(iso8601_utc_string):
     timestamp = datetime.strptime(
         iso8601_utc_string, "%Y-%m-%dT%H:%M:%S.%fZ")
     timestamp = timestamp.replace(tzinfo=pytz.UTC)
-    logger.debug("convert_utc_iso8601_to_date({})={}".format(
-        iso8601_utc_string, timestamp))
+    logger.debug(f"convert_utc_iso8601_to_date({iso8601_utc_string})={timestamp}")
     return timestamp
 
 

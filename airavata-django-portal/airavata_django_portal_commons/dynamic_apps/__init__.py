@@ -1,7 +1,7 @@
 import logging
 from importlib import import_module
-from importlib_metadata import entry_points
 
+from importlib_metadata import entry_points
 
 # AppConfig instances from custom Django apps
 CUSTOM_DJANGO_APPS = []
@@ -19,7 +19,7 @@ def load(installed_apps, entry_point_group="airavata.djangoapp"):
         # Create path to AppConfig class (otherwise the ready() method doesn't get
         # called)
         logger.info(f"adding dynamic Django app {entry_point.name}")
-        installed_apps.append("{}.{}".format(entry_point.module, entry_point.attr))
+        installed_apps.append(f"{entry_point.module}.{entry_point.attr}")
 
 
 def merge_setting_dict(default, custom_setting):
@@ -31,7 +31,7 @@ def merge_setting_dict(default, custom_setting):
             else:
                 raise Exception(
                     "Custom django app setting conflicts with "
-                    "key {} in {}".format(k, default)
+                    f"key {k} in {default}"
                 )
 
 

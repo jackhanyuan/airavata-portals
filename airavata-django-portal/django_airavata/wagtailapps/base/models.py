@@ -1,21 +1,13 @@
-from __future__ import unicode_literals
 
 import os
-from typing import Any
 
 from django.db import models
 from modelcluster.fields import ParentalKey
 from modelcluster.models import ClusterableModel
-from wagtail.admin.panels import (
-    FieldPanel,
-    InlinePanel,
-    MultiFieldPanel,
-    ObjectList,
-    PageChooserPanel,
-    TabbedInterface
-)
+from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel, ObjectList, PageChooserPanel, TabbedInterface
 from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Orderable, Page
+
 # ImageChooserPanel is not available in this version, using FieldPanel instead
 from wagtail.snippets.models import register_snippet
 
@@ -373,7 +365,7 @@ class GatewayTitle(models.Model):
     ]
 
     def __str__(self):
-        return "Gateway Title: {}".format(self.title_text)
+        return f"Gateway Title: {self.title_text}"
 
     class Meta:
         verbose_name_plural = 'Gateway Title'

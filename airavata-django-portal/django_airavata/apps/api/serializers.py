@@ -9,67 +9,33 @@ from airavata.model.appcatalog.appdeployment.ttypes import (
     ApplicationDeploymentDescription,
     ApplicationModule,
     CommandObject,
-    SetEnvPaths
+    SetEnvPaths,
 )
-from airavata.model.appcatalog.appinterface.ttypes import (
-    ApplicationInterfaceDescription
-)
-from airavata.model.appcatalog.computeresource.ttypes import (
-    BatchQueue,
-    ComputeResourceDescription
-)
-from airavata.model.appcatalog.gatewayprofile.ttypes import (
-    GatewayResourceProfile,
-    StoragePreference
-)
+from airavata.model.appcatalog.appinterface.ttypes import ApplicationInterfaceDescription
+from airavata.model.appcatalog.computeresource.ttypes import BatchQueue, ComputeResourceDescription
+from airavata.model.appcatalog.gatewayprofile.ttypes import GatewayResourceProfile, StoragePreference
 from airavata.model.appcatalog.groupresourceprofile.ttypes import (
     ComputeResourceReservation,
     GroupComputeResourcePreference,
-    GroupResourceProfile
+    GroupResourceProfile,
 )
 from airavata.model.appcatalog.parser.ttypes import Parser
-from airavata.model.appcatalog.storageresource.ttypes import (
-    StorageResourceDescription
-)
-from airavata.model.application.io.ttypes import (
-    InputDataObjectType,
-    OutputDataObjectType
-)
-from airavata.model.credential.store.ttypes import (
-    CredentialSummary,
-    SummaryType
-)
-from airavata.model.data.replica.ttypes import (
-    DataProductModel,
-    DataReplicaLocationModel
-)
-from airavata.model.experiment.ttypes import (
-    ExperimentModel,
-    ExperimentStatistics,
-    ExperimentSummaryModel
-)
+from airavata.model.appcatalog.storageresource.ttypes import StorageResourceDescription
+from airavata.model.application.io.ttypes import InputDataObjectType, OutputDataObjectType
+from airavata.model.credential.store.ttypes import CredentialSummary, SummaryType
+from airavata.model.data.replica.ttypes import DataProductModel, DataReplicaLocationModel
+from airavata.model.experiment.ttypes import ExperimentModel, ExperimentStatistics, ExperimentSummaryModel
 from airavata.model.group.ttypes import GroupModel, ResourcePermissionType
 from airavata.model.job.ttypes import JobModel
-from airavata.model.status.ttypes import (
-    ExperimentState,
-    ExperimentStatus,
-    ProcessStatus
-)
+from airavata.model.status.ttypes import ExperimentState, ExperimentStatus, ProcessStatus
 from airavata.model.user.ttypes import UserProfile
-from airavata.model.workspace.ttypes import (
-    Notification,
-    NotificationPriority,
-    Project
-)
-from airavata_django_portal_sdk import (
-    experiment_util,
-    queue_settings_calculators,
-    user_storage
-)
+from airavata.model.workspace.ttypes import Notification, NotificationPriority, Project
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import serializers
+
+from airavata_django_portal_sdk import experiment_util, queue_settings_calculators, user_storage
 
 from . import models, thrift_utils, view_utils
 
@@ -87,9 +53,8 @@ class FullyEncodedHyperlinkedIdentityField(
             encoded_lookup_value = quote(lookup_value, safe="")
         except Exception:
             log.warning(
-                "Failed to encode lookup_value [{}] for lookup_field "
-                "[{}] of object [{}]".format(
-                    lookup_value, self.lookup_field, obj))
+                f"Failed to encode lookup_value [{lookup_value}] for lookup_field "
+                f"[{self.lookup_field}] of object [{obj}]")
             raise
         # Bit of a hack. Django's URL reversing does URL encoding but it
         # doesn't encode all characters including some like '/' that are used
@@ -110,7 +75,7 @@ class UTCPosixTimestampDateTimeField(serializers.DateTimeField):
 
     def to_representation(self, obj):
         # Create datetime instance from milliseconds that is aware of timezon
-        dt = datetime.datetime.fromtimestamp(obj / 1000, datetime.timezone.utc)
+        dt = datetime.datetime.fromtimestamp(obj / 1000, datetime.UTC)
         return super().to_representation(dt)
 
     def to_internal_value(self, data):

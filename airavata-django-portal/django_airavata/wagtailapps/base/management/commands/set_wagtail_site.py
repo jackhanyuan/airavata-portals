@@ -3,11 +3,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from wagtail.models import Page, Site
 
-from django_airavata.wagtailapps.base.models import (
-    BlankPage,
-    CybergatewayHomePage,
-    HomePage
-)
+from django_airavata.wagtailapps.base.models import BlankPage, CybergatewayHomePage, HomePage
 
 
 class Command(BaseCommand):

@@ -3,8 +3,8 @@ import logging
 from django.conf import settings
 from django.contrib.auth.signals import user_logged_in
 from django.dispatch import receiver
-from django.shortcuts import reverse
 from django.template import Context
+from django.urls import reverse
 
 from django_airavata.apps.api.signals import user_added_to_group
 from django_airavata.utils import user_profile_client_pool
@@ -44,11 +44,11 @@ def initialize_user_profile(sender, request, user, **kwargs):
                                                       settings.GATEWAY_ID):
             if user.user_profile.is_complete:
                 user_profile_client_pool.initializeUserProfile(request.authz_token)
-                log.info("initialized user profile for {}".format(user.username))
+                log.info(f"initialized user profile for {user.username}")
                 # Since user profile created, inform admins of new user
                 utils.send_new_user_email(
                     request, user.username, user.email, user.first_name, user.last_name)
-                log.info("sent new user email for user {}".format(user.username))
+                log.info(f"sent new user email for user {user.username}")
             else:
                 log.info(f"user profile not complete for {user.username}, "
                          "skipping initializing Airavata user profile")

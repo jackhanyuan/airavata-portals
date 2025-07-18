@@ -17,7 +17,7 @@ from rest_framework.serializers import (
     ListSerializer,
     Serializer,
     SerializerMetaclass,
-    ValidationError
+    ValidationError,
 )
 from thrift.Thrift import TType
 
@@ -46,7 +46,7 @@ class UTCPosixTimestampDateTimeField(DateTimeField):
 
     def to_representation(self, obj):
         # Create datetime instance from milliseconds that is aware of timezon
-        dt = datetime.datetime.fromtimestamp(obj / 1000, datetime.timezone.utc)
+        dt = datetime.datetime.fromtimestamp(obj / 1000, datetime.UTC)
         return super().to_representation(dt)
 
     def to_internal_value(self, data):
@@ -76,8 +76,7 @@ class ThriftEnumField(Field):
             return None
         if data not in self.enumClass.__members__:
             raise ValidationError(
-                "Not an allowed name of enum {}".format(
-                    self.enumClass.__name__))
+                f"Not an allowed name of enum {self.enumClass.__name__}")
         return self.enumClass[data]
 
 

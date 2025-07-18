@@ -116,4 +116,4 @@ urlpatterns = router.urls + format_suffix_patterns(urlpatterns)
 
 if logger.isEnabledFor(logging.DEBUG):
     for router_url in router.urls:
-        logger.debug("router url: {}".format(router_url))
+        logger.debug(f"router url: {router_url}")

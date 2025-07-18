@@ -49,8 +49,8 @@ def download_file(request):
         # 'mime-type' url parameter overrides
         mime_type = request.GET.get('mime-type', mime_type)
     except Exception as e:
-        logger.warning("Failed to load DataProduct for {}"
-                       .format(data_product_uri), exc_info=True)
+        logger.warning(f"Failed to load DataProduct for {data_product_uri}"
+                       , exc_info=True)
         raise Http404("data product does not exist") from e
     try:
         data_file = user_storage.open_file(request, data_product)

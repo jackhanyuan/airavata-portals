@@ -1,10 +1,7 @@
 import logging
 import sys
 
-from airavata.api.error.ttypes import (
-    AuthorizationException,
-    ExperimentNotFoundException
-)
+from airavata.api.error.ttypes import AuthorizationException, ExperimentNotFoundException
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
 from rest_framework import status

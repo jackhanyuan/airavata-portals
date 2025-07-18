@@ -194,7 +194,7 @@ class _Datastore:
             return self.storage.open(path)
         else:
             raise ObjectDoesNotExist(
-                "File path does not exist: {}".format(path))
+                f"File path does not exist: {path}")
 
     def save(self, path, file, name=None):
         """Save file to username/path in data store."""
@@ -212,7 +212,7 @@ class _Datastore:
         if not user_data_storage.exists(path):
             self._makedirs(path)
         else:
-            raise Exception("Directory {} already exists".format(path))
+            raise Exception(f"Directory {path} already exists")
 
     def create_symlink(self, source_path, dest_path):
         user_data_storage = self.storage
@@ -227,7 +227,7 @@ class _Datastore:
             user_data_storage.delete(path)
         else:
             raise ObjectDoesNotExist(
-                "File path does not exist: {}".format(path))
+                f"File path does not exist: {path}")
 
     def delete_dir(self, path):
         """Delete entire directory in this data store."""
@@ -239,7 +239,7 @@ class _Datastore:
             shutil.rmtree(user_path)
         else:
             raise ObjectDoesNotExist(
-                "File path does not exist: {}".format(path))
+                f"File path does not exist: {path}")
 
     def get_experiment_dir(
         self, project_name=None, experiment_name=None, path=None
@@ -291,7 +291,7 @@ class _Datastore:
             mode=user_experiment_data_storage.directory_permissions_mode)
 
     def list_user_dir(self, file_path):
-        logger.debug("file_path={}".format(file_path))
+        logger.debug(f"file_path={file_path}")
         user_data_storage = self.storage
         return user_data_storage.listdir(file_path)
 

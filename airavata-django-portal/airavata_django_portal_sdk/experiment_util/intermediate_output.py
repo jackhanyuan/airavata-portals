@@ -1,5 +1,4 @@
 import logging
-from typing import List, Union
 
 from airavata.model.data.replica.ttypes import DataProductModel
 from airavata.model.experiment.ttypes import ExperimentModel
@@ -11,7 +10,7 @@ from airavata.model.task.ttypes import TaskModel, TaskTypes
 logger = logging.getLogger(__name__)
 
 
-def get_intermediate_output_process_status(request, experiment: ExperimentModel, *output_name: str) -> Union[ProcessStatus, None]:
+def get_intermediate_output_process_status(request, experiment: ExperimentModel, *output_name: str) -> ProcessStatus | None:
     """Return ProcessStatus of intermediate output fetch process, or None if not available."""
     # check that there is at least one intermediate output fetching process
     output_fetching_processes = _get_output_fetching_processes(experiment)
@@ -29,7 +28,7 @@ def get_intermediate_output_process_status(request, experiment: ExperimentModel,
 def can_fetch_intermediate_output(request, experiment: ExperimentModel, output_name: str) -> bool:
     """Return True if intermediate output can be fetched for the given named output."""
     # look at job status and check if currently running intermediate output process
-    jobs: List[JobModel] = []
+    jobs: list[JobModel] = []
     process: ProcessModel
     task: TaskModel
     for process in experiment.processes:
@@ -60,7 +59,7 @@ def fetch_intermediate_output(request, experiment_id: str, *output_name: str) ->
         request.authz_token, experiment_id, list(output_name))
 
 
-def get_intermediate_output_data_products(request, experiment: ExperimentModel, output_name: str) -> List[DataProductModel]:
+def get_intermediate_output_data_products(request, experiment: ExperimentModel, output_name: str) -> list[DataProductModel]:
     """Return the DataProduct instance(s) for a experiment output."""
     output_fetching_processes = _get_output_fetching_processes(experiment)
 
@@ -88,10 +87,10 @@ def get_intermediate_output_data_products(request, experiment: ExperimentModel, 
     return data_products
 
 
-def _get_output_fetching_processes(experiment: ExperimentModel) -> List[ProcessModel]:
+def _get_output_fetching_processes(experiment: ExperimentModel) -> list[ProcessModel]:
     "sort the processes (most recent first) and filter to just the output fetching ones"
-    processes: List[ProcessModel] = sorted(experiment.processes, key=lambda p: p.creationTime, reverse=True) if experiment.processes else []
-    output_fetching_processes: List[ProcessModel] = []
+    processes: list[ProcessModel] = sorted(experiment.processes, key=lambda p: p.creationTime, reverse=True) if experiment.processes else []
+    output_fetching_processes: list[ProcessModel] = []
     for process in processes:
         if any(map(lambda t: t.taskType == TaskTypes.OUTPUT_FETCHING, process.tasks)):
             output_fetching_processes.append(process)

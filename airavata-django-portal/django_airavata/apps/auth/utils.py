@@ -48,6 +48,8 @@ def get_service_account_authz_token():
         verify=verify)
 
     access_token = token.get('access_token')
+    if access_token is None:
+        raise ValueError("No access token found")
     return AuthzToken(
         accessToken=access_token,
         # This is a service account, so leaving out userName for now
@@ -61,6 +63,8 @@ def _create_authz_token(request, user=None, access_token=None):
         user = request.user
     username = user.username
     gateway_id = settings.GATEWAY_ID
+    if access_token is None:
+        raise ValueError("No access token found")
     return AuthzToken(accessToken=access_token,
                       claimsMap={'gatewayID': gateway_id,
                                  'userName': username})
@@ -211,8 +215,7 @@ def send_email_to_user(template_id, context):
     msg = EmailMessage(
         subject=subject,
         body=body,
-        from_email="\"{}\" <{}>".format(settings.PORTAL_TITLE,
-                                        settings.SERVER_EMAIL),
+        from_email=f"\"{settings.PORTAL_TITLE}\" <{settings.SERVER_EMAIL}>",
         to=["\"{} {}\" <{}>".format(context['first_name'],
                                     context['last_name'],
                                     context['email'])],

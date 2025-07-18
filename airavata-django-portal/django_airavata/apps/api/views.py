@@ -4,13 +4,14 @@ import logging
 import os
 import warnings
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 from airavata.model.appcatalog.computeresource.ttypes import (
     CloudJobSubmission,
     GlobusJobSubmission,
     LOCALSubmission,
     SSHJobSubmission,
-    UnicoreJobSubmission
+    UnicoreJobSubmission,
 )
 from airavata.model.application.io.ttypes import DataType
 from airavata.model.credential.store.ttypes import SummaryType
@@ -18,19 +19,11 @@ from airavata.model.data.movement.ttypes import (
     GridFTPDataMovement,
     LOCALDataMovement,
     SCPDataMovement,
-    UnicoreDataMovement
+    UnicoreDataMovement,
 )
-from airavata.model.experiment.ttypes import (
-    ExperimentModel,
-    ExperimentSearchFields
-)
+from airavata.model.experiment.ttypes import ExperimentModel, ExperimentSearchFields
 from airavata.model.group.ttypes import ResourcePermissionType
 from airavata.model.user.ttypes import Status
-from airavata_django_portal_sdk import (
-    experiment_util,
-    queue_settings_calculators,
-    user_storage
-)
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
@@ -46,6 +39,7 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from airavata_django_portal_sdk import experiment_util, queue_settings_calculators, user_storage
 from django_airavata.apps.admin.models import UserDataArchiveEntry
 from django_airavata.apps.api.view_utils import (
     APIBackedViewSet,
@@ -54,22 +48,15 @@ from django_airavata.apps.api.view_utils import (
     DataProductSharedDirPermission,
     GenericAPIBackedViewSet,
     IsInAdminsGroupPermission,
-    UserStorageSharedDirPermission
+    UserStorageSharedDirPermission,
 )
 from django_airavata.apps.auth import iam_admin_client
 from django_airavata.apps.auth.models import EmailVerification
 
-from . import (
-    exceptions,
-    helpers,
-    models,
-    output_views,
-    serializers,
-    signals,
-    thrift_utils,
-    tus,
-    view_utils
-)
+from . import exceptions, helpers, models, output_views, serializers, signals, thrift_utils, tus, view_utils
+
+if TYPE_CHECKING:
+    from django_airavata.stubs import AiravataHttpRequest
 
 READ_PERMISSION_TYPE = '{}:READ'
 
@@ -81,6 +68,7 @@ class GroupViewSet(APIBackedViewSet):
     lookup_field = 'group_id'
     pagination_class = APIResultPagination
     pagination_viewname = 'django_airavata_api:group-list'
+    request: 'AiravataHttpRequest'
 
     def get_list(self):
         view = self
@@ -146,6 +134,7 @@ class ProjectViewSet(APIBackedViewSet):
     lookup_field = 'project_id'
     pagination_class = APIResultPagination
     pagination_viewname = 'django_airavata_api:project-list'
+    request: 'AiravataHttpRequest'
 
     def get_list(self):
         view = self
@@ -204,6 +193,7 @@ class ExperimentViewSet(mixins.CreateModelMixin,
                         GenericAPIBackedViewSet):
     serializer_class = serializers.ExperimentSerializer
     lookup_field = 'experiment_id'
+    request: 'AiravataHttpRequest'
 
     def get_instance(self, lookup_value):
         return self.request.airavata_client.getExperiment(
@@ -275,7 +265,7 @@ class ExperimentViewSet(mixins.CreateModelMixin,
             raise e
 
     @action(methods=['post'], detail=True)
-    def fetch_intermediate_outputs(self, request, experiment_id=None):
+    def fetch_intermediate_outputs(self, request, experiment_id):
         if "outputNames" not in request.data:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         try:
@@ -300,10 +290,11 @@ class ExperimentSearchViewSet(mixins.ListModelMixin, GenericAPIBackedViewSet):
     serializer_class = serializers.ExperimentSummarySerializer
     pagination_class = APIResultPagination
     pagination_viewname = 'django_airavata_api:experiment-search-list'
+    request: 'AiravataHttpRequest'
 
     def get_list(self):
         view = self
-        
+
         filters = {
             ExperimentSearchFields[name].value: val
             for name, val in self.request.query_params.items()
@@ -327,6 +318,7 @@ class FullExperimentViewSet(mixins.RetrieveModelMixin,
                             GenericAPIBackedViewSet):
     serializer_class = serializers.FullExperimentSerializer
     lookup_field = 'experiment_id'
+    request: 'AiravataHttpRequest'
 
     def get_instance(self, lookup_value):
         """Get FullExperiment instance with resolved references."""
@@ -396,8 +388,7 @@ class FullExperimentViewSet(mixins.RetrieveModelMixin,
                 self.authz_token, compute_resource_id) \
                 if compute_resource_id else None
         except Exception:
-            log.exception("Failed to load compute resource for {}".format(
-                compute_resource_id), extra={'request': self.request})
+            log.exception(f"Failed to load compute resource for {compute_resource_id}", extra={'request': self.request})
             compute_resource = None
         if self.request.airavata_client.userHasAccess(
                 self.authz_token,
@@ -425,6 +416,7 @@ class FullExperimentViewSet(mixins.RetrieveModelMixin,
 class ApplicationModuleViewSet(APIBackedViewSet):
     serializer_class = serializers.ApplicationModuleSerializer
     lookup_field = 'app_module_id'
+    request: 'AiravataHttpRequest'
 
     def get_list(self):
         return self.request.airavata_client.getAccessibleAppModules(
@@ -465,15 +457,15 @@ class ApplicationModuleViewSet(APIBackedViewSet):
             return Response(serializer.data)
         elif len(app_interfaces) > 1:
             log.error(
-                "More than one application interface found for module {}: {}"
-                .format(app_module_id, app_interfaces), extra={'request': request})
+                f"More than one application interface found for module {app_module_id}: {app_interfaces}"
+                , extra={'request': request})
             raise Exception(
-                'More than one application interface found for module {}'
-                .format(app_module_id)
+                f'More than one application interface found for module {app_module_id}'
+
             )
         else:
-            raise Http404("No application interface found for module id {}"
-                          .format(app_module_id))
+            raise Http404(f"No application interface found for module id {app_module_id}"
+                          )
 
     @action(detail=True)
     def application_deployments(self, request, app_module_id):
@@ -533,6 +525,7 @@ class ApplicationModuleViewSet(APIBackedViewSet):
 class ApplicationInterfaceViewSet(APIBackedViewSet):
     serializer_class = serializers.ApplicationInterfaceDescriptionSerializer
     lookup_field = 'app_interface_id'
+    request: 'AiravataHttpRequest'
 
     def get_list(self):
         return self.request.airavata_client.getAllApplicationInterfaces(
@@ -555,7 +548,7 @@ class ApplicationInterfaceViewSet(APIBackedViewSet):
     def perform_create(self, serializer):
         application_interface = serializer.save()
         self._update_input_metadata(application_interface)
-        log.debug("application_interface: {}".format(application_interface))
+        log.debug(f"application_interface: {application_interface}")
         app_interface_id = self.request.airavata_client.registerApplicationInterface(
             self.authz_token, self.gateway_id, application_interface)
         application_interface.applicationInterfaceId = app_interface_id
@@ -597,6 +590,7 @@ class ApplicationInterfaceViewSet(APIBackedViewSet):
 class ApplicationDeploymentViewSet(APIBackedViewSet):
     serializer_class = serializers.ApplicationDeploymentDescriptionSerializer
     lookup_field = 'app_deployment_id'
+    request: 'AiravataHttpRequest'
 
     def get_list(self):
         app_module_id = self.request.query_params.get('appModuleId', None)
@@ -660,6 +654,7 @@ class ComputeResourceViewSet(mixins.RetrieveModelMixin,
                              GenericAPIBackedViewSet):
     serializer_class = serializers.ComputeResourceDescriptionSerializer
     lookup_field = 'compute_resource_id'
+    request: 'AiravataHttpRequest'
 
     def get_instance(self, lookup_value, format=None):
         return self.request.airavata_client.getComputeResource(
@@ -693,7 +688,7 @@ class ComputeResourceViewSet(mixins.RetrieveModelMixin,
             request.authz_token, compute_resource_id)
         serializer = self.serializer_class(instance=details,
                                            context={'request': request})
-        data = serializer.data
+        data = dict(serializer.data)
         return Response([queue["queueName"] for queue in data["batchQueues"]])
 
 
@@ -896,8 +891,8 @@ def delete_file(request):
         data_product = request.airavata_client.getDataProduct(
             request.authz_token, data_product_uri)
     except Exception as e:
-        log.warning("Failed to load DataProduct for {}"
-                    .format(data_product_uri), exc_info=True)
+        log.warning(f"Failed to load DataProduct for {data_product_uri}"
+                    , exc_info=True)
         raise Http404("data product does not exist") from e
     try:
         if (data_product.gatewayId != settings.GATEWAY_ID or
@@ -913,6 +908,7 @@ class UserProfileViewSet(mixins.RetrieveModelMixin,
                          mixins.ListModelMixin,
                          GenericAPIBackedViewSet):
     serializer_class = serializers.UserProfileSerializer
+    request: 'AiravataHttpRequest'
 
     def get_list(self):
         user_profile_client = self.request.profile_service['user_profile']
@@ -928,6 +924,7 @@ class UserProfileViewSet(mixins.RetrieveModelMixin,
 class GroupResourceProfileViewSet(APIBackedViewSet):
     serializer_class = serializers.GroupResourceProfileSerializer
     lookup_field = 'group_resource_profile_id'
+    request: 'AiravataHttpRequest'
 
     def get_list(self):
         return self.request.airavata_client.getGroupResourceList(
@@ -979,6 +976,7 @@ class SharedEntityViewSet(mixins.RetrieveModelMixin,
                           GenericAPIBackedViewSet):
     serializer_class = serializers.SharedEntitySerializer
     lookup_field = 'entity_id'
+    request: 'AiravataHttpRequest'
 
     def get_instance(self, lookup_value):
         users = {}
@@ -1194,6 +1192,7 @@ class SharedEntityViewSet(mixins.RetrieveModelMixin,
 
 class CredentialSummaryViewSet(APIBackedViewSet):
     serializer_class = serializers.CredentialSummarySerializer
+    request: 'AiravataHttpRequest'
 
     def get_list(self):
         ssh_creds = self.request.airavata_client.getAllCredentialSummaries(
@@ -1307,6 +1306,7 @@ class StorageResourceViewSet(mixins.RetrieveModelMixin,
                              GenericAPIBackedViewSet):
     serializer_class = serializers.StorageResourceSerializer
     lookup_field = 'storage_resource_id'
+    request: 'AiravataHttpRequest'
 
     def get_instance(self, lookup_value, format=None):
         return self.request.airavata_client.getStorageResource(
@@ -1323,6 +1323,7 @@ class StorageResourceViewSet(mixins.RetrieveModelMixin,
 class StoragePreferenceViewSet(APIBackedViewSet):
     serializer_class = serializers.StoragePreferenceSerializer
     lookup_field = 'storage_resource_id'
+    request: 'AiravataHttpRequest'
 
     def get_list(self):
         return self.request.airavata_client.getAllGatewayStoragePreferences(
@@ -1360,6 +1361,7 @@ class ParserViewSet(mixins.CreateModelMixin,
                     GenericAPIBackedViewSet):
     serializer_class = serializers.ParserSerializer
     lookup_field = 'parser_id'
+    request: 'AiravataHttpRequest'
 
     def get_list(self):
         return self.request.airavata_client.listAllParsers(
@@ -1382,13 +1384,13 @@ class UserStoragePathView(APIView):
     serializer_class = serializers.UserStoragePathSerializer
     permission_classes = (IsAuthenticated, UserStorageSharedDirPermission)
 
-    def get(self, request, path="/", format=None):
+    def get(self, request: 'AiravataHttpRequest', path="/", format=None):
         # AIRAVATA-3460 Allow passing path as a query parameter instead
         path = request.query_params.get('path', path)
         experiment_id = request.query_params.get('experiment-id')
         return self._create_response(request, path, experiment_id=experiment_id)
 
-    def post(self, request, path="/", format=None):
+    def post(self, request: 'AiravataHttpRequest', path="/", format=None):
         path = request.data.get('path', path)
         experiment_id = request.data.get('experiment-id')
         if not user_storage.dir_exists(request, path, experiment_id=experiment_id):
@@ -1418,7 +1420,7 @@ class UserStoragePathView(APIView):
         return self._create_response(request, path, uploaded=data_product, experiment_id=experiment_id)
 
     # Accept wither to replace file or to replace file content text.
-    def put(self, request, path="/", format=None):
+    def put(self, request: 'AiravataHttpRequest', path="/", format=None):
         path = request.POST.get('path', path)
         # Replace the file if the request has a file upload.
         if 'file' in request.FILES:
@@ -1436,7 +1438,7 @@ class UserStoragePathView(APIView):
 
         return self._create_response(request=request, path=path)
 
-    def delete(self, request, path="/", format=None):
+    def delete(self, request: 'AiravataHttpRequest', path="/", format=None):
         path = request.data.get('path', path)
         experiment_id = request.data.get('experiment-id')
         if user_storage.dir_exists(request, path, experiment_id=experiment_id):
@@ -1446,7 +1448,7 @@ class UserStoragePathView(APIView):
 
         return Response(status=204)
 
-    def _create_response(self, request, path, uploaded=None, experiment_id=None):
+    def _create_response(self, request: 'AiravataHttpRequest', path, uploaded=None, experiment_id=None):
         if user_storage.dir_exists(request, path, experiment_id=experiment_id):
             directories, files = user_storage.listdir(request, path, experiment_id=experiment_id)
             data = {
@@ -1475,7 +1477,7 @@ class UserStoragePathView(APIView):
                 data, context={'request': request})
             return Response(serializer.data)
 
-    def _split_path(self, path):
+    def _split_path(self, path: str):
         head, tail = os.path.split(path)
         if head != path:
             return self._split_path(head) + [tail]
@@ -1489,10 +1491,10 @@ class ExperimentStoragePathView(APIView):
 
     serializer_class = serializers.ExperimentStoragePathSerializer
 
-    def get(self, request, experiment_id=None, path="", format=None):
+    def get(self, request: 'AiravataHttpRequest', experiment_id=None, path="", format=None):
         return self._create_response(request, experiment_id, path)
 
-    def _create_response(self, request, experiment_id, path):
+    def _create_response(self, request: 'AiravataHttpRequest', experiment_id, path):
         if user_storage.experiment_dir_exists(request, experiment_id, path):
             directories, files = user_storage.list_experiment_dir(request, experiment_id, path)
 
@@ -1511,7 +1513,7 @@ class ExperimentStoragePathView(APIView):
         else:
             raise Http404(f"Path '{path}' does not exist for {experiment_id}")
 
-    def _split_path(self, path):
+    def _split_path(self, path: str):
         head, tail = os.path.split(path)
         if head != "":
             return self._split_path(head) + [tail]
@@ -1523,8 +1525,9 @@ class ExperimentStoragePathView(APIView):
 
 class WorkspacePreferencesView(APIView):
     serializer_class = serializers.WorkspacePreferencesSerializer
+    request: 'AiravataHttpRequest'
 
-    def get(self, request, format=None):
+    def get(self, request: 'AiravataHttpRequest', format=None):
         helper = helpers.WorkspacePreferencesHelper()
         workspace_preferences = helper.get(request)
         serializer = self.serializer_class(
@@ -1535,6 +1538,7 @@ class WorkspacePreferencesView(APIView):
 class ManageNotificationViewSet(APIBackedViewSet):
     serializer_class = serializers.NotificationSerializer
     lookup_field = 'notification_id'
+    request: 'AiravataHttpRequest'
 
     def get_instance(self, lookup_value):
         return self.request.airavata_client.getNotification(
@@ -1591,6 +1595,7 @@ class IAMUserViewSet(mixins.RetrieveModelMixin,
     pagination_class = APIResultPagination
     permission_classes = (IsAuthenticated, IsInAdminsGroupPermission,)
     lookup_field = 'user_id'
+    request: 'AiravataHttpRequest'
 
     def get_list(self):
         search = self.request.GET.get('search', None)
@@ -1693,7 +1698,7 @@ class ExperimentStatisticsView(APIView):
     # TODO: restrict to only Admins or Read Only Admins group members
     serializer_class = serializers.ExperimentStatisticsSerializer
 
-    def get(self, request, format=None):
+    def get(self, request: 'AiravataHttpRequest', format=None):
         if 'fromTime' in request.GET:
             from_time = view_utils.convert_utc_iso8601_to_date(
                 request.GET['fromTime']).timestamp() * 1000
@@ -1750,8 +1755,8 @@ class UnverifiedEmailUserViewSet(mixins.ListModelMixin,
         users = self._get_unverified_email_user_profiles(
             limit=1, username=lookup_value)
         if len(users) == 0:
-            raise Http404("No unverified email record found for user {}"
-                          .format(lookup_value))
+            raise Http404(f"No unverified email record found for user {lookup_value}"
+                          )
         else:
             return users[0]
 
@@ -1840,7 +1845,7 @@ class APIServerStatusCheckView(APIView):
                 "apiServerUp": True
             }
         except Exception as e:
-            log.debug("API server status check failed: {}".format(str(e)))
+            log.debug(f"API server status check failed: {str(e)}")
             data = {
                 "apiServerUp": False
             }

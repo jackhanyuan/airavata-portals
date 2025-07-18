@@ -1,8 +1,5 @@
 from django.conf import settings
-from django.core.files.uploadhandler import (
-    StopUpload,
-    TemporaryFileUploadHandler
-)
+from django.core.files.uploadhandler import StopUpload, TemporaryFileUploadHandler
 
 
 class MaxFileSizeTemporaryFileUploadHandler(TemporaryFileUploadHandler):

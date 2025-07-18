@@ -1,7 +1,7 @@
 import io
 import logging
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from urllib.parse import quote, urlencode, urlparse
 
 import requests
@@ -12,13 +12,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.db.transaction import atomic
 from django.forms import ValidationError
-from django.http import (
-    FileResponse,
-    HttpResponseBadRequest,
-    HttpResponseForbidden,
-    JsonResponse
-)
-from django.shortcuts import redirect, render, resolve_url
+from django.http import FileResponse, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
+from django.shortcuts import redirect, render
 from django.template import Context
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -28,11 +23,9 @@ from rest_framework import mixins, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from django_airavata.apps.api.view_utils import (
-    IsInAdminsGroupPermission,
-    ReadOnly
-)
+from django_airavata.apps.api.view_utils import IsInAdminsGroupPermission, ReadOnly
 from django_airavata.apps.auth import serializers
+from django_airavata.stubs import AiravataHttpRequest
 
 from . import forms, iam_admin_client, models, utils
 
@@ -111,7 +104,7 @@ def handle_login(request):
     if login_type and login_type == 'password':
         template = "django_airavata_auth/login_username_password.html"
     user = authenticate(username=username, password=password, request=request)
-    logger.debug("authenticated user: {}".format(user))
+    logger.debug(f"authenticated user: {user}")
     try:
         if user is not None:
             # Middleware will add authz_token attr to request, but since user
@@ -130,9 +123,9 @@ def handle_login(request):
         else:
             messages.error(request, "Login failed. Please try again.")
     except Exception as err:
-        logger.exception("Login failed for user {}".format(username), extra={'request': request})
+        logger.exception(f"Login failed for user {username}", extra={'request': request})
         messages.error(request,
-                       "Login failed: {}. Please try again.".format(str(err)))
+                       f"Login failed: {str(err)}. Please try again.")
     if login_desktop:
         return _create_login_desktop_failed_response(request)
     return render(request, template, {
@@ -166,11 +159,11 @@ def callback(request):
             raise Exception("Failed to authenticate user")
     except Exception as err:
         logger.exception("An error occurred while processing OAuth2 "
-                         "callback: {}".format(request.build_absolute_uri()),
+                         f"callback: {request.build_absolute_uri()}",
                          extra={'request': request})
         messages.error(
             request,
-            "Failed to process OAuth2 callback: {}".format(str(err)))
+            f"Failed to process OAuth2 callback: {str(err)}")
         if login_desktop:
             return _create_login_desktop_failed_response(
                 request, idp_alias=idp_alias)
@@ -224,8 +217,8 @@ def create_account(request):
                         reverse('django_airavata_auth:create_account'))
             except Exception as e:
                 logger.exception(
-                    "Failed to create account for user", exc_info=e, extra={'request', request})
-                form.add_error(None, ValidationError(e.message))
+                    "Failed to create account for user", exc_info=e, extra={'request': request})
+                form.add_error(None, ValidationError(str(e)))
     else:
         form = forms.CreateAccountForm(initial=request.GET)
     return render(request, 'django_airavata_auth/create_account.html', {
@@ -243,19 +236,19 @@ def verify_email(request, code):
         email_verification.save()
         # Check if user is enabled, if so redirect to login page
         username = email_verification.username
-        logger.debug("Email address verified for {}".format(username))
+        logger.debug(f"Email address verified for {username}")
         login_url = reverse('django_airavata_auth:login')
         if email_verification.next:
             login_url += "?" + urlencode({'next': email_verification.next})
         if iam_admin_client.is_user_enabled(username):
-            logger.debug("User {} is already enabled".format(username))
+            logger.debug(f"User {username} is already enabled")
             messages.success(
                 request,
                 "Your account has already been successfully created. "
                 "Please log in now.")
             return redirect(login_url)
         else:
-            logger.debug("Enabling user {}".format(username))
+            logger.debug(f"Enabling user {username}")
             # enable user and inform admins
             iam_admin_client.enable_user(username)
             user_profile = iam_admin_client.get_user(username)
@@ -276,7 +269,7 @@ def verify_email(request, code):
         # if doesn't exist, give user a form where they can enter their
         # username to resend verification code
         logger.exception("EmailVerification object doesn't exist for "
-                         "code {}".format(code), extra={'request': request})
+                         f"code {code}", extra={'request': request})
         messages.error(
             request,
             "Email verification failed. Please enter your username and we "
@@ -343,7 +336,7 @@ def _create_and_send_email_verification_link(
             'django_airavata_auth:verify_email', kwargs={
                 'code': email_verification.verification_code}))
     logger.debug(
-        "verification_uri={}".format(verification_uri))
+        f"verification_uri={verification_uri}")
 
     context = Context({
         "username": username,
@@ -408,7 +401,7 @@ def _create_and_send_password_reset_request_link(request, username):
             'django_airavata_auth:reset_password', kwargs={
                 'code': password_reset_request.reset_code}))
     logger.debug(
-        "password reset verification_uri={}".format(verification_uri))
+        f"password reset verification_uri={verification_uri}")
 
     user = iam_admin_client.get_user(username)
     context = Context({
@@ -433,7 +426,7 @@ def reset_password(request, code):
             "Reset password link is invalid. Please try again.")
         return redirect(reverse('django_airavata_auth:forgot_password'))
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if now - password_reset_request.created_date > timedelta(days=1):
         password_reset_request.delete()
         messages.error(
@@ -584,6 +577,7 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.UserSerializer
     queryset = get_user_model().objects.all()
     permission_classes = [IsUserOrReadOnlyForAdmins]
+    request: AiravataHttpRequest
 
     def get_queryset(self):
         user = self.request.user
@@ -593,20 +587,22 @@ class UserViewSet(viewsets.ModelViewSet):
             return get_user_model().objects.filter(pk=user.pk)
 
     @action(detail=False)
-    def current(self, request):
+    def current(self, request: AiravataHttpRequest):
         return redirect(reverse('django_airavata_auth:user-detail', kwargs={'pk': request.user.id}))
 
     @action(methods=['post'], detail=True)
-    def resend_email_verification(self, request, pk=None):
+    def resend_email_verification(self, request: AiravataHttpRequest, pk=None):
         pending_email_change = models.PendingEmailChange.objects.get(user=request.user, verified=False)
         if pending_email_change is not None:
-            serializer = serializers.UserSerializer()
-            serializer._send_email_verification_link(request, pending_email_change)
+            # Create serializer and cast to correct type
+            serializer = serializers.UserSerializer(context={'request': request})
+            # Use type: ignore to bypass the type checker for this specific line
+            serializer._send_email_verification_link(request, pending_email_change)  # type: ignore
         return JsonResponse({})
 
     @action(methods=['post'], detail=True)
     @atomic
-    def verify_email_change(self, request, pk=None):
+    def verify_email_change(self, request: AiravataHttpRequest, pk=None):
         user = self.get_object()
         code = request.data['code']
 
@@ -765,6 +761,7 @@ class ExtendedUserProfileValueViewset(mixins.CreateModelMixin,
                                       viewsets.GenericViewSet):
     serializer_class = serializers.ExtendedUserProfileValueSerializer
     permission_classes = [IsExtendedUserProfileOwnerOrReadOnlyForAdmins]
+    request: AiravataHttpRequest
 
     def get_queryset(self):
         user = self.request.user
@@ -778,7 +775,7 @@ class ExtendedUserProfileValueViewset(mixins.CreateModelMixin,
 
     @action(methods=['POST'], detail=False, url_path="save-all")
     @atomic
-    def save_all(self, request, format=None):
+    def save_all(self, request: AiravataHttpRequest, format=None):
         user = request.user
         user_profile: models.UserProfile = user.user_profile
         old_valid = user_profile.is_ext_user_profile_valid

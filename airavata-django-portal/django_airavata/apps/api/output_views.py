@@ -8,9 +8,10 @@ from functools import partial
 import nbformat
 import papermill as pm
 from airavata.model.application.io.ttypes import DataType
-from airavata_django_portal_sdk import user_storage
 from django.conf import settings
 from nbconvert import HTMLExporter
+
+from airavata_django_portal_sdk import user_storage
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,7 @@ def get_output_views(request, experiment, application_interface=None):
                     output_view_provider_id]
             else:
                 logger.warning("Unable to find output view provider with "
-                               "name '{}'".format(output_view_provider_id))
+                               f"name '{output_view_provider_id}'")
             if output_view_provider is not None:
                 view_config = {
                     'provider-id': output_view_provider_id,
@@ -120,18 +121,17 @@ def _get_output_view_provider(output_view_provider_id):
 
 def _get_output_view_providers(experiment_output, application_interface):
     output_view_providers = []
-    logger.debug("experiment_output={}".format(experiment_output))
+    logger.debug(f"experiment_output={experiment_output}")
     if experiment_output.metaData:
         try:
             output_metadata = json.loads(experiment_output.metaData)
-            logger.debug("output_metadata={}".format(output_metadata))
+            logger.debug(f"output_metadata={output_metadata}")
             if 'output-view-providers' in output_metadata:
                 output_view_providers.extend(
                     output_metadata['output-view-providers'])
         except Exception:
             logger.exception(
-                "Failed to parse metadata for output {}".format(
-                    experiment_output.name))
+                f"Failed to parse metadata for output {experiment_output.name}")
     # Add in any output view providers defined on the application interface
     if application_interface is not None:
         app_output_view_providers = _get_application_output_view_providers(
@@ -149,7 +149,7 @@ def _get_application_output_view_providers(application_interface, output_name):
                   for o in application_interface.applicationOutputs
                   if o.name == output_name]
     if len(app_output) == 1:
-        logger.debug("{}: {}".format(output_name, app_output))
+        logger.debug(f"{output_name}: {app_output}")
         app_output = app_output[0]
     else:
         return []
@@ -160,8 +160,7 @@ def _get_application_output_view_providers(application_interface, output_name):
                 return output_metadata['output-view-providers']
         except Exception:
             logger.exception(
-                "Failed to parse metadata for output {}".format(
-                    app_output.name))
+                f"Failed to parse metadata for output {app_output.name}")
     return []
 
 

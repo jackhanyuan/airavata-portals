@@ -9,7 +9,7 @@ from airavata.model.data.replica.ttypes import (
     DataProductModel,
     DataProductType,
     DataReplicaLocationModel,
-    ReplicaLocationCategory
+    ReplicaLocationCategory,
 )
 from airavata.model.security.ttypes import AuthzToken
 from django.conf import settings
@@ -107,7 +107,7 @@ class SaveTests(BaseTestCase):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'w') as f:
                 f.write("Some Unicode text")
-            with open(path, 'r') as f:
+            with open(path) as f:
                 dp = user_storage.save(
                     self.request, "some/path", f,
                     content_type="application/octet-stream")

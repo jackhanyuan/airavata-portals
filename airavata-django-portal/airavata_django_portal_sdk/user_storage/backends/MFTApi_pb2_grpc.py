@@ -5,7 +5,7 @@ import grpc
 from . import MFTApi_pb2 as MFTApi__pb2
 
 
-class MFTApiServiceStub(object):
+class MFTApiServiceStub:
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -56,7 +56,7 @@ class MFTApiServiceStub(object):
                 )
 
 
-class MFTApiServiceServicer(object):
+class MFTApiServiceServicer:
     """Missing associated documentation comment in .proto file."""
 
     def submitTransfer(self, request, context):
@@ -157,7 +157,7 @@ def add_MFTApiServiceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class MFTApiService(object):
+class MFTApiService:
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod

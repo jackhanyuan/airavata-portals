@@ -60,8 +60,7 @@ class WorkspacePreferencesHelper:
             most_recent_project = self._get_most_recent_project(request)
             if most_recent_project:
                 logger.warn(
-                    "_check: updating most_recent_project_id to {}".format(
-                        most_recent_project.projectID))
+                    f"_check: updating most_recent_project_id to {most_recent_project.projectID}")
                 prefs.most_recent_project_id = most_recent_project.projectID
             else:
                 logger.warn("_check: no writeable projects found")

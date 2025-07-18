@@ -4,8 +4,8 @@ import os
 import shutil
 import tarfile
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 archive_list_filename = f"{archive_basename}.txt"
                 archive_list_filepath = os.path.join(tmpdir, archive_list_filename)
                 entry_count = 0
-                with open(archive_list_filepath, "wt") as archive_list_file:
+                with open(archive_list_filepath, "w") as archive_list_file:
                     for entry in entries_to_archive:
                         entry_count = entry_count + 1
                         archive_list_file.write(f"{entry.path}\n")
