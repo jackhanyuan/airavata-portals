@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires      = ["setuptools>=68.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,90 +8,86 @@ version = "1.0.0"
 description = "The Airavata Django Portal is a web interface to the Apache Airavata API implemented using the Django web framework."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "Apache License 2.0"}
+license = { text = "Apache License 2.0" }
 authors = [
-  {name = "Apache Software Foundation", email = "dev@airavata.apache.org"}
+  { name = "Apache Software Foundation", email = "dev@airavata.apache.org" },
 ]
-urls = {"Homepage" = "https://github.com/apache/airavata-django-portal"}
+urls = { "Homepage" = "https://github.com/apache/airavata-portals/tree/main/airavata-django-portal" }
 
 # Main dependencies
 dependencies = [
-    "Django < 5",
-    "djangorestframework",
-    "requests",
-    "requests-oauthlib",
-    "thrift",
-    "thrift_connector",
-    "wagtail",
-    "wagtailfontawesome",
-    "jupyter",
-    "papermill",
-    "airavata-python-sdk < 3"
+  "airavata-python-sdk>=2.0.0,<3.0",
+  "Django>=4.2,<5.0",
+  "djangorestframework",
+  "requests",
+  "requests-oauthlib",
+  "thrift",
+  "thrift_connector",
+  "wagtail",
+  "wagtailfontawesome",
+  "jupyter",
+  "papermill",
+  "django-webpack-loader",
+  "mysqlclient",
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Environment :: Web Environment",
-    "Framework :: Django",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
-    "Natural Language :: English",
-    "Programming Language :: Python :: 3.10",
-    "Topic :: Internet :: WWW/HTTP",
-    "Topic :: Internet :: WWW/HTTP :: WSGI :: Application"
+  "Development Status :: 4 - Beta",
+  "Environment :: Web Environment",
+  "Framework :: Django",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Natural Language :: English",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Internet :: WWW/HTTP",
+  "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "ruff",
-    "Markdown",
-    "mkdocs",
-    "mkautodoc",
-    "pycodestyle",
-    "Jinja2",
-    "pytest",
-    "pytest-django",
-    "tox"
+  "ruff>=0.1.0",
+  "Markdown>=3.5.0",
+  "mkdocs>=1.5.0",
+  "mkautodoc>=0.1.0",
+  "pycodestyle>=2.11.0",
+  "Jinja2>=3.1.0",
+  "pytest>=7.4.0",
+  "pytest-django>=4.5.0",
+  "tox>=4.6.0",
 ]
-mysql = [
-    "mysqlclient"
-] 
-
-[tool.flake8]
-exclude = [
-    "venv",
-    "./airavata",
-    "node_modules",
-    "settings_local.py",
-    "*/migrations",
-    ".tox"
-]
-ignore = ["E501", "W504"]
 
 [tool.isort]
 multi_line_output = 3
-skip = ["migrations", ".git"]
-skip_gitignore = true
-known_third_party = ["airavata", "airavata_django_portal_sdk"]
+skip_gitignore    = true
 
 [tool.setuptools.packages.find]
-where = ["airavata_django_portal_commons", "airavata_django_portal_sdk", "django_airavata"] 
+where = []
 
 [tool.ruff]
 line-length = 120
+target-version = "py311"
 
 [tool.ruff.lint]
-exclude = [
-    "venv",
-    "./airavata",
-    "node_modules",
-    "settings_local.py",
-    "*/migrations",
-    ".tox"
-]
 ignore = ["E501"]
-extend-select = ["I"]  # isort rules
+extend-select = ["I", "UP", "N", "W", "C90"]
 
 [tool.ruff.format]
-quote-style = "double"
+quote-style  = "double"
 indent-style = "space"
-line-ending = "auto" 
+line-ending  = "auto"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+  "--strict-markers",
+  "--strict-config",
+  "--verbose",
+]
+markers = [
+  "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+  "integration: marks tests as integration tests",
+  "unit: marks tests as unit tests",
+]

@@ -15,16 +15,16 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='cybergatewayhomepage',
             name='show_footer',
-            field=models.CharField(choices=[('yes', 'Yes'), ('no', 'No')], default=True, help_text="Choose yes if you want the Footer to show on home page or no if you don't want to", max_length=5),
+            field=models.CharField(choices=[('yes', 'Yes'), ('no', 'No')], default='yes', help_text="Choose yes if you want the Footer to show on home page or no if you don't want to", max_length=5),
         ),
         migrations.AlterField(
             model_name='cybergatewayhomepage',
             name='show_nav_extra',
-            field=models.CharField(choices=[('yes', 'Yes'), ('no', 'No')], default=True, help_text="Choose yes if you want the secondary navbar to show on home page or no if you don't want to", max_length=5),
+            field=models.CharField(choices=[('yes', 'Yes'), ('no', 'No')], default='yes', help_text="Choose yes if you want the secondary navbar to show on home page or no if you don't want to", max_length=5),
         ),
         migrations.AlterField(
             model_name='cybergatewayhomepage',
             name='show_navbar',
-            field=models.CharField(choices=[('yes', 'Yes'), ('no', 'No')], default=True, help_text="Choose yes if you want to display the navbar on home page and no if you don't want to.", max_length=5),
+            field=models.CharField(choices=[('yes', 'Yes'), ('no', 'No')], default='yes', help_text="Choose yes if you want to display the navbar on home page and no if you don't want to.", max_length=5),
         ),
     ]

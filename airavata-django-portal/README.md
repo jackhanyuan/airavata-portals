@@ -30,12 +30,12 @@ on how to install Yarn 1 (Classic).
 1.  Checkout this project and create a virtual environment.
 
     ```
-    git clone https://github.com/apache/airavata-django-portal.git
-    cd airavata-django-portal
+    git clone https://github.com/apache/airavata-portals.git
+    cd airavata-portals/airavata-django-portal
     python3 -m venv venv
     source venv/bin/activate
     pip install --upgrade pip setuptools wheel
-    pip install -r requirements.txt
+    pip install .
     ```
 
     - **Windows note**: Use ```venv\Scripts\activate``` instead of ```source venv/bin/activate```

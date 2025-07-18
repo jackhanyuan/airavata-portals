@@ -7,20 +7,24 @@ module.exports = {
       : "/static/django_airavata_dataparsers/dist/",
   outputDir: "./static/django_airavata_dataparsers/dist",
   pages: {
-    "parser-details":
-      "./static/django_airavata_dataparsers/js/entry-parser-details",
-    "parser-list":
-      "./static/django_airavata_dataparsers/js/parser-listing-entry-point.js",
-    "parser-edit":
-      "./static/django_airavata_dataparsers/js/parser-edit-entry-point.js",
+    "parser-details": "./static/django_airavata_dataparsers/js/entry-parser-details",
+    "parser-list": "./static/django_airavata_dataparsers/js/parser-listing-entry-point.js",
+    "parser-edit": "./static/django_airavata_dataparsers/js/parser-edit-entry-point.js",
   },
   configureWebpack: {
     plugins: [
-      new BundleTracker({
-        filename: "webpack-stats.json",
-        path: "./static/django_airavata_dataparsers/dist/",
-      }),
+      new BundleTracker({ filename: './static/django_airavata_dataparsers/dist/webpack-stats.json' })
     ],
+    output: {
+      filename: 'js/[name].[contenthash].js',
+      chunkFilename: 'js/[name].[contenthash].js'
+    }
+  },
+  css: {
+    extract: {
+      filename: 'css/[name].[contenthash].css',
+      chunkFilename: 'css/[name].[contenthash].css'
+    }
   },
   devServer: {
     port: 9000,

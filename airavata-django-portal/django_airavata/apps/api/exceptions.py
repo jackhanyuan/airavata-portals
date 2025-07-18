@@ -56,7 +56,7 @@ def custom_exception_handler(exc, context):
 
     if isinstance(exc, NotAuthenticated):
         log.debug("NotAuthenticated", exc_info=exc)
-        if response is not None:
+        if response is not None and response.data is not None:
             response.data['is_authenticated'] = False
 
     if isinstance(exc, UnicodeEncodeError):

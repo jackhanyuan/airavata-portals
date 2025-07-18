@@ -7,8 +7,9 @@
   {% favicon %}
   {% include "./django_airavata/google_analytics.html" %}
 
-  {% render_bundle 'chunk-vendors' 'css' 'COMMON' %}
   {% render_bundle 'app' 'css' 'COMMON' %}
+  {% render_bundle 'cms' 'css' 'COMMON' %}
+  {% render_bundle 'notices' 'css' 'COMMON' %}
   {% block css %}
 
   {% endblock %}
@@ -256,8 +257,9 @@
     // provide data for initializing api's session.Session
     window.AiravataPortalSessionData = {{ user_session_data|safe }};
   </script>
-  {% render_bundle 'chunk-vendors' 'js' 'COMMON' %}
   {% render_bundle 'app' 'js' 'COMMON' %}
+  {% render_bundle 'cms' 'js' 'COMMON' %}
+  {% render_bundle 'notices' 'js' 'COMMON' %}
   {% if user.is_authenticated %}
     {% render_bundle 'notices' 'js' 'COMMON' %}
   {% endif %}

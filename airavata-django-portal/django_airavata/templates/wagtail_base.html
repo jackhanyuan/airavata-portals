@@ -18,8 +18,9 @@
     {% endblock content %}
   </content>
 
-  {% render_bundle 'chunk-vendors' 'js' 'COMMON' %}
+  {% render_bundle 'app' 'js' 'COMMON' %}
   {% render_bundle 'cms' 'js' 'COMMON' %}
+  {% render_bundle 'notices' 'js' 'COMMON' %}
 </body>
 
 </html>

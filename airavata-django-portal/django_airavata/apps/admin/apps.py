@@ -6,12 +6,24 @@ class AdminConfig(AiravataAppConfig):
     name = 'django_airavata.apps.admin'
     label = 'django_airavata_admin'
     verbose_name = 'Settings'
-    app_order = 100
-    url_home = 'django_airavata_admin:home'
-    fa_icon_class = 'fa-cog'
-    app_description = """
+    
+    @property
+    def app_order(self):
+        return 100
+    
+    @property
+    def url_home(self):
+        return 'django_airavata_admin:home'
+    
+    @property
+    def fa_icon_class(self):
+        return 'fa-cog'
+    
+    @property
+    def app_description(self):
+        return """
         Configure and share resources with other users.
-    """
+        """
     nav = [
         {
             'label': 'Application Catalog',

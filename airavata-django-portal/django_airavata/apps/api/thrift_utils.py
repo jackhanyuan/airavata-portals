@@ -51,7 +51,7 @@ class UTCPosixTimestampDateTimeField(DateTimeField):
 
     def to_internal_value(self, data):
         dt = super().to_internal_value(data)
-        return int(dt.timestamp() * 1000)
+        return int(dt.timestamp() * 1000) if dt is not None else None
 
     def initial_value(self):
         return self.to_representation(self.current_time_ms())

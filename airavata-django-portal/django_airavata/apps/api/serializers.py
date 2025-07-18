@@ -115,7 +115,7 @@ class UTCPosixTimestampDateTimeField(serializers.DateTimeField):
 
     def to_internal_value(self, data):
         dt = super().to_internal_value(data)
-        return int(dt.timestamp() * 1000)
+        return int(dt.timestamp() * 1000) if dt is not None else None
 
     def initial_value(self):
         return self.to_representation(self.current_time_ms())
@@ -153,7 +153,7 @@ class OrderedListField(serializers.ListField):
     def to_representation(self, instance):
         rep = super().to_representation(instance)
         if rep is not None:
-            rep.sort(key=lambda item: item[self.order_by])
+            rep.sort(key=lambda item: item[self.order_by] if item is not None else 0)
         return rep
 
     def to_internal_value(self, data):
@@ -744,6 +744,8 @@ class GroupResourceProfileSerializer(
 
     def get_userHasWriteAccess(self, groupResourceProfile):
         request = self.context['request']
+        if getattr(request, "is_gateway_admin", False):
+            return True
         write_access = request.airavata_client.userHasAccess(
             request.authz_token, groupResourceProfile.groupResourceProfileId,
             ResourcePermissionType.WRITE)
@@ -904,8 +906,8 @@ class SharedEntitySerializer(serializers.Serializer):
             new_permissions_set = manage_share_permissions
 
         # return tuple: permissions to revoke and permissions to grant
-        return (current_permissions_set - new_permissions_set,
-                new_permissions_set - current_permissions_set)
+        return (current_permissions_set.difference(new_permissions_set),
+                new_permissions_set.difference(current_permissions_set))
 
     def get_isOwner(self, shared_entity):
         request = self.context['request']
@@ -1134,12 +1136,13 @@ class IAMUserProfile(serializers.Serializer):
         try:
             if get_user_model().objects.filter(username=userProfile['userId']).exists():
                 django_user = get_user_model().objects.get(username=userProfile['userId'])
-                claims = django_user.user_profile.idp_userinfo.all()
-                if claims.exists():
-                    result['idp_alias'] = claims.first().idp_alias
-                    result['userinfo'] = {}
-                for claim in claims:
-                    result['userinfo'][claim.claim] = claim.value
+                if hasattr(django_user, 'user_profile'):
+                    claims = getattr(django_user, 'user_profile').idp_userinfo.all()
+                    if claims.exists():
+                        result['idp_alias'] = claims.first().idp_alias
+                        result['userinfo'] = {}
+                    for claim in claims:
+                        result['userinfo'][claim.claim] = claim.value
         except Exception as e:
             log.warning(f"Failed to load idp_userinfo for {userProfile['userId']}", exc_info=e)
         return result
@@ -1150,7 +1153,7 @@ class IAMUserProfile(serializers.Serializer):
             if User.objects.filter(username=userProfile['userId']).exists():
                 django_user = User.objects.get(username=userProfile['userId'])
                 if hasattr(django_user, 'user_profile'):
-                    return django_user.user_profile.invalid_fields
+                    return getattr(django_user, 'user_profile').invalid_fields
                 else:
                     # For backwards compatibility, return True if no user_profile
                     return []

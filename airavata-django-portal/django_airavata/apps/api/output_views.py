@@ -1,4 +1,4 @@
-import collections
+import collections.abc
 import inspect
 import json
 import logging
@@ -48,7 +48,7 @@ class ParameterizedNotebookViewProvider:
                       output_file=None,
                       output_dir=None):
         # use papermill to generate the output notebook
-        output_file_path = os.path.realpath(output_file.name)
+        output_file_path = os.path.realpath(output_file.name) if output_file else None
         pm.execute_notebook(
             os.path.join(BASE_DIR, "path", "to", "notebook.ipynb"),
             # TODO: use TemporaryFile instead
@@ -256,7 +256,7 @@ def _convert_options(data):
         if 'options' in param and isinstance(param['options'][0], str):
             param['options'] = _convert_options_strings(param['options'])
         elif 'options' in param and isinstance(
-                param['options'][0], collections.Sequence):
+                param['options'][0], collections.abc.Sequence):
             param['options'] = _convert_options_sequences(param['options'])
 
 

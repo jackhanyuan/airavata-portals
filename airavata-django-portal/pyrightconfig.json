@@ -1,0 +1,21 @@
+{
+  "include": [
+    "airavata_django_portal_commons",
+    "airavata_django_portal_sdk",
+    "django_airavata",
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "**/fixtures",
+    "**/migrations",
+    "**/media",
+    "**/resources",
+    "**/static",
+    "**/templates",
+    "**/venv",
+  ],
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false
+}

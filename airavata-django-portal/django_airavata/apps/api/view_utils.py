@@ -14,6 +14,10 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from rest_framework.viewsets import GenericViewSet
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from django_airavata.stubs import AiravataHttpRequest
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +61,7 @@ class GenericAPIBackedViewSet(GenericViewSet):
 
     @property
     def username(self):
-        return self.request.user.username
+        return getattr(self.request.user, 'username')
 
     @property
     def gateway_id(self):
@@ -65,7 +69,7 @@ class GenericAPIBackedViewSet(GenericViewSet):
 
     @property
     def authz_token(self):
-        return self.request.authz_token
+        return getattr(self.request, 'authz_token')
 
 
 class ReadOnlyAPIBackedViewSet(mixins.RetrieveModelMixin,
@@ -137,12 +141,12 @@ class APIResultPagination(pagination.LimitOffsetPagination):
     """
     default_limit = 10
 
-    def paginate_queryset(self, queryset, request, view=None):
+    def paginate_queryset(self, queryset, request: 'AiravataHttpRequest', view=None):
         assert isinstance(
             queryset, APIResultIterator), "queryset is not an APIResultIterator: {}".format(queryset)
         self.query_params = queryset.query_params.copy()
         self.limit = self.get_limit(request)
-        if self.limit is None:
+        if self.limit is None or not isinstance(self.limit, int):
             return None
 
         self.offset = self.get_offset(request)
@@ -156,7 +160,7 @@ class APIResultPagination(pagination.LimitOffsetPagination):
 
         return list(queryset[self.offset:self.offset + self.limit])
 
-    def get_limit(self, request):
+    def get_limit(self, request: 'AiravataHttpRequest') -> int | None:
         # If limit <= 0 then don't paginate
         if self.limit_query_param in request.query_params and int(
                 request.query_params[self.limit_query_param]) <= 0:
@@ -164,7 +168,7 @@ class APIResultPagination(pagination.LimitOffsetPagination):
         return super().get_limit(request)
 
     def get_paginated_response(self, data):
-        has_next_link = len(data) >= self.limit
+        has_next_link = len(data) >= self.limit if self.limit else False
         return Response(OrderedDict([
             ('next', self.get_next_link() if has_next_link else None),
             ('previous', self.get_previous_link()),
@@ -177,7 +181,7 @@ class APIResultPagination(pagination.LimitOffsetPagination):
         url = self.get_base_url()
         url = replace_query_param(url, self.limit_query_param, self.limit)
 
-        offset = self.offset + self.limit
+        offset = self.offset + self.limit if self.limit else 0
         return replace_query_param(url, self.offset_query_param, offset)
 
     def get_previous_link(self):
@@ -187,10 +191,10 @@ class APIResultPagination(pagination.LimitOffsetPagination):
         url = self.get_base_url()
         url = replace_query_param(url, self.limit_query_param, self.limit)
 
-        if self.offset - self.limit <= 0:
+        if self.offset - self.limit <= 0 if self.limit else False:
             return remove_query_param(url, self.offset_query_param)
 
-        offset = self.offset - self.limit
+        offset = self.offset - self.limit if self.limit else 0
         return replace_query_param(url, self.offset_query_param, offset)
 
     def get_base_url(self):
@@ -217,7 +221,7 @@ def convert_utc_iso8601_to_date(iso8601_utc_string):
 class IsInAdminsGroupPermission(permissions.BasePermission):
     message = "User must be member of the Admins or Read Only Admins groups."
 
-    def has_permission(self, request, view):
+    def has_permission(self, request: 'AiravataHttpRequest', view):
         # Read Only Admins can make GET requests only
         if request.method in permissions.SAFE_METHODS:
             return (request.is_gateway_admin or
@@ -227,7 +231,7 @@ class IsInAdminsGroupPermission(permissions.BasePermission):
 
 
 class ReadOnly(permissions.BasePermission):
-    def has_permission(self, request, view):
+    def has_permission(self, request: 'AiravataHttpRequest', view):
         return request.method in permissions.SAFE_METHODS
 
 
@@ -248,10 +252,10 @@ def is_shared_path(path):
 
 
 class BaseSharedDirPermission(permissions.BasePermission):
-    def get_path(self, request, view) -> str:
+    def get_path(self, request: 'AiravataHttpRequest', view) -> str:
         raise NotImplementedError()
 
-    def has_permission(self, request, view):
+    def has_permission(self, request: 'AiravataHttpRequest', view):
         if request.method in permissions.SAFE_METHODS:
             return True
 
@@ -271,12 +275,12 @@ class BaseSharedDirPermission(permissions.BasePermission):
 
 
 class DataProductSharedDirPermission(BaseSharedDirPermission):
-    def get_path(self, request, view) -> str:
+    def get_path(self, request: 'AiravataHttpRequest', view) -> str:
         data_product_uri = request.query_params.get('data-product-uri', request.query_params.get('product-uri', ''))
         file_metadata = user_storage.get_data_product_metadata(request, data_product_uri=data_product_uri)
         return file_metadata["path"]
 
-    def has_permission(self, request, view):
+    def has_permission(self, request: 'AiravataHttpRequest', view):
         # Special handling for remote API, just get the userHasWriteAccess attribute and use that
         if hasattr(settings, 'GATEWAY_DATA_STORE_REMOTE_API'):
             if request.method in permissions.SAFE_METHODS:
@@ -290,6 +294,6 @@ class DataProductSharedDirPermission(BaseSharedDirPermission):
 
 class UserStorageSharedDirPermission(BaseSharedDirPermission):
 
-    def get_path(self, request, view):
+    def get_path(self, request: 'AiravataHttpRequest', view):
         # 'path' can be a url path parameter, query parameter or in the request body (data)
         return request.query_params.get('path', request.data.get('path', view.kwargs.get('path')))
