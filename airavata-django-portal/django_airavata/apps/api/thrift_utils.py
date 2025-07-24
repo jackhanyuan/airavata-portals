@@ -4,6 +4,7 @@ Used to create Django Rest Framework serializers for Apache Thrift Data Types
 import copy
 import datetime
 import logging
+import enum
 
 from rest_framework.serializers import (
     BooleanField,
@@ -67,18 +68,19 @@ class ThriftEnumField(Field):
         self.enumClass = enumClass
 
     def to_representation(self, obj):
+        # For IntEnum, obj is the enum member, its `.name` is the string
         if obj is None:
             return None
-        return self.enumClass._VALUES_TO_NAMES[obj]
+        return obj.name
 
     def to_internal_value(self, data):
+        # Convert string name back into an IntEnum member
         if self.allow_null and data is None:
             return None
-        if data not in self.enumClass._NAMES_TO_VALUES:
-            raise ValidationError(
-                "Not an allowed name of enum {}".format(
-                    self.enumClass.__name__))
-        return self.enumClass._NAMES_TO_VALUES.get(data, None)
+        try:
+            return self.enumClass[data]
+        except KeyError:
+            raise ValidationError(f"'{data}' is not a valid name for enum {self.enumClass.__name__}")
 
 
 def create_serializer(thrift_data_type, enable_date_time_conversion=False, **kwargs):
@@ -171,6 +173,10 @@ def process_field(field, enable_date_time_conversion, required=False, read_only=
         if field_class == CharField:
             kwargs['allow_blank'] = allow_null
         thrift_model_class = mapping[field[1]]
+
+        if thrift_model_class == IntegerField and field[3] is not None and isinstance(field[3], type) and issubclass(field[3], enum.IntEnum):
+            return ThriftEnumField(field[3], required=required, read_only=read_only, allow_null=allow_null)
+
         if enable_date_time_conversion and thrift_model_class == IntegerField and field[2].lower().endswith("time"):
             thrift_model_class = UTCPosixTimestampDateTimeField
         return thrift_model_class(**kwargs)
