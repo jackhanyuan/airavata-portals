@@ -21,6 +21,8 @@ from rest_framework.serializers import (
     ValidationError
 )
 from thrift.Thrift import TType
+from airavata.model.experiment.ttypes import ExperimentType
+from airavata.model.application.io.ttypes import DataType
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +133,16 @@ def create_serializer_class(thrift_data_type, enable_date_time_conversion=False)
                     if (params.get(field_name, None) is not None or
                             not serializer.allow_null):
                         if isinstance(serializer.child, Serializer):
+                            # If this is a list of experiment inputs, need to manually
+                            # convert the 'type' field from an integer to a DataType enum
+                            if field_name == 'experimentInputs' and 'type' in serializer.child.fields:
+                                for item in params[field_name]:
+                                    if 'type' in item and isinstance(item['type'], int):
+                                        item['type'] = DataType(item['type'])
+                            elif field_name == 'experimentOutputs' and 'type' in serializer.child.fields:
+                                for item in params[field_name]:
+                                    if 'type' in item and isinstance(item['type'], int):
+                                        item['type'] = DataType(item['type'])
                             params[field_name] = [serializer.child.create(
                                 item) for item in params[field_name]]
                         else:
@@ -144,6 +156,12 @@ def create_serializer_class(thrift_data_type, enable_date_time_conversion=False)
 
         def create(self, validated_data):
             params = self.process_nested_fields(validated_data)
+            if thrift_data_type.__name__ == 'ExperimentModel' and 'experimentId' in params and params['experimentId'] is None:
+                del params['experimentId']
+
+            if thrift_data_type.__name__ == 'ExperimentModel' and 'experimentType' in params and isinstance(params['experimentType'], int):
+                params['experimentType'] = ExperimentType(params['experimentType'])
+
             return thrift_data_type(**params)
 
         def update(self, instance, validated_data):
@@ -202,10 +220,18 @@ def process_list_field(field):
     :return:
     """
     list_details = field[3]
-    if list_details[0] in mapping:
-        # handling scenario when the data type hold by the list is in the
-        # mapping
-        return mapping[list_details[0]]()
-    elif list_details[0] == TType.STRUCT:
-        # handling scenario when the data type hold by the list is a struct
-        return create_serializer(list_details[1][0])
+    item_ttype = list_details[0]
+    # For enums, extra type info is the enum Class (e.g. ExperimentState)
+    # For structs, it's a tuple of (StructClass, StructClass.thrift_spec)
+    item_type_info = list_details[1]
+
+    if (item_ttype == TType.I32 and
+        item_type_info is not None and
+        isinstance(item_type_info, type) and
+        issubclass(item_type_info, enum.IntEnum)):
+        return ThriftEnumField(item_type_info)
+
+    if item_ttype in mapping:
+        return mapping[item_ttype]()
+    elif item_ttype == TType.STRUCT:
+        return create_serializer(item_type_info[0])
