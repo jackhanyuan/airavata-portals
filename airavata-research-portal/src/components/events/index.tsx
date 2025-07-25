@@ -9,7 +9,7 @@ export const Events = () => {
         <Accordion.Root multiple defaultValue={[events[0].id]}>
           {events.map((event) => (
               <Accordion.Item key={event.id} value={event.id} mb={8}>
-                <Accordion.ItemTrigger>
+                <Accordion.ItemTrigger _hover={{cursor: 'pointer', bg: 'gray.100'}}>
                   {event.name} <Spacer/>
                   <Span color="gray.400" fontSize="sm">
                     {event.id}
