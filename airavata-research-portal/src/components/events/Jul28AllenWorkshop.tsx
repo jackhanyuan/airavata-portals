@@ -14,13 +14,13 @@ export const Jul28AllenWorkshop = () => {
           />
           <KeyPair
               keyStr="User Instructions"
-              valueStr="Cybershuttle Instructions for Allen Workshop.pdf"
-              href="https://drive.google.com/file/d/1MzkMzdHrJCxj0_zSUcjclj_4jRVFZh7L/view?usp=sharing"
+              valueStr="Cybershuttle Instructions for Allen Workshop"
+              href="https://drive.google.com/file/d/19L15IjssBAC69xzXrOOnfQvxIZFij24u/view?usp=sharing"
           />
           <KeyPair
               keyStr="FAQ"
-              valueStr="Cybershuttle FAQ for Allen Workshop.pdf"
-              href="https://drive.google.com/file/d/1h01m-eOLp88S6p0RA4uppg37LWQM6toL/view?usp=sharing"
+              valueStr="Cybershuttle FAQ"
+              href="https://drive.google.com/file/d/1IQIqWUwN_gONCilEW7KWxsVa4b7iNuoy/view?usp=sharing"
           />
         </VStack>
       </>
