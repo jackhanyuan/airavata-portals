@@ -15,7 +15,7 @@ export const Jul28AllenWorkshop = () => {
           <KeyPair
               keyStr="User Instructions"
               valueStr="Cybershuttle Instructions for Allen Workshop"
-              href="https://drive.google.com/file/d/19L15IjssBAC69xzXrOOnfQvxIZFij24u/view?usp=sharing"
+              href="https://drive.google.com/file/d/1tb3U8dKL4Jq_K-l45X6w7CgBE0To0Fmu/view?usp=sharing"
           />
           <KeyPair
               keyStr="FAQ"
