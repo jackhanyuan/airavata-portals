@@ -11,6 +11,7 @@ export const Jul28AllenWorkshop = () => {
           <KeyPair
               keyStr="Workshop Details"
               valueStr="https://alleninstitute.org/events/2025-modeling-software-workshop"
+              href="https://alleninstitute.org/events/2025-modeling-software-workshop"
           />
           <KeyPair
               keyStr="User Instructions"
