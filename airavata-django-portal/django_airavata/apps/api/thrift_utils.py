@@ -22,6 +22,7 @@ from rest_framework.serializers import (
 )
 from thrift.Thrift import TType
 from airavata.model.experiment.ttypes import ExperimentType
+from airavata.model.status.ttypes import ExperimentState
 from airavata.model.application.io.ttypes import DataType
 
 logger = logging.getLogger(__name__)
@@ -143,6 +144,10 @@ def create_serializer_class(thrift_data_type, enable_date_time_conversion=False)
                                 for item in params[field_name]:
                                     if 'type' in item and isinstance(item['type'], int):
                                         item['type'] = DataType(item['type'])
+                            elif field_name == 'experimentStatus' and 'state' in serializer.child.fields:
+                                for item in params[field_name]:
+                                    if 'state' in item and isinstance(item['state'], int):
+                                        item['state'] = ExperimentState(item['state'])
                             params[field_name] = [serializer.child.create(
                                 item) for item in params[field_name]]
                         else:
