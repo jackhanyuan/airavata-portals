@@ -1,6 +1,7 @@
 import logging
 
 import thrift
+import thrift.transport.TTransport
 from django.shortcuts import render
 
 from . import utils
