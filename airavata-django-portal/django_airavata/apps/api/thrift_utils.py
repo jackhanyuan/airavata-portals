@@ -24,6 +24,7 @@ from thrift.Thrift import TType
 from airavata.model.experiment.ttypes import ExperimentType
 from airavata.model.status.ttypes import ExperimentState
 from airavata.model.application.io.ttypes import DataType
+from airavata.model.appcatalog.parallelism.ttypes import ApplicationParallelismType
 
 logger = logging.getLogger(__name__)
 
@@ -161,11 +162,19 @@ def create_serializer_class(thrift_data_type, enable_date_time_conversion=False)
 
         def create(self, validated_data):
             params = self.process_nested_fields(validated_data)
-            if thrift_data_type.__name__ == 'ExperimentModel' and 'experimentId' in params and params['experimentId'] is None:
+            if (thrift_data_type.__name__ == 'ExperimentModel' and
+                'experimentId' in params and params['experimentId'] is None):
                 del params['experimentId']
 
-            if thrift_data_type.__name__ == 'ExperimentModel' and 'experimentType' in params and isinstance(params['experimentType'], int):
+            if (thrift_data_type.__name__ == 'ExperimentModel' and
+                'experimentType' in params and isinstance(params['experimentType'], int)):
                 params['experimentType'] = ExperimentType(params['experimentType'])
+
+            if thrift_data_type.__name__ == 'ApplicationDeploymentDescription':
+                if 'appDeploymentId' in params and params['appDeploymentId'] is None:
+                    del params['appDeploymentId']
+                if 'parallelism' in params and isinstance(params['parallelism'], int):
+                    params['parallelism'] = ApplicationParallelismType(params['parallelism'])
 
             return thrift_data_type(**params)
 
