@@ -2,6 +2,7 @@ import {Accordion, Container, Spacer, Span} from "@chakra-ui/react";
 import {Apr11Workshop} from "./Apr11Workshop";
 import {May7Workshop} from "./May7Workshop";
 import {Jul28AllenWorkshop} from "@/components/events/Jul28AllenWorkshop.tsx";
+import {Aug6MDWorkshop} from "@/components/events/Aug6MDWorkshop.tsx";
 
 export const Events = () => {
   return (
@@ -28,6 +29,11 @@ export const Events = () => {
 };
 
 const events = [
+  {
+    id: "Aug 4, 2025",
+    name: "63rd Hands-on Workshop on Computational Biophysics",
+    component: Aug6MDWorkshop,
+  },
   {
     id: "July 28-30, 2025",
     name: "2025 Allen Institute Modeling Software Workshop (28-30 July 2025)",
