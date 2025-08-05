@@ -16,12 +16,7 @@ export const Aug6MDWorkshop = () => {
           <KeyPair
               keyStr="User Instructions"
               valueStr="Cybershuttle Instrutions for MD Workshop"
-              href="https://drive.google.com/file/d/1vRICIA6JGZT4CdzFNaIL_mCBwc3I5JFK/view?usp=sharing"
-          />
-          <KeyPair
-              keyStr="FAQ"
-              valueStr="Cybershuttle FAQ"
-              href="https://drive.google.com/file/d/1IQIqWUwN_gONCilEW7KWxsVa4b7iNuoy/view?usp=sharing"
+              href="https://drive.google.com/file/d/1vRICIA6JGZT4CdzFNaIL_mCBwc3I5JFK/view"
           />
         </VStack>
       </>
