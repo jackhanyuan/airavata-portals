@@ -44,7 +44,7 @@ import {
   Resource,
 } from "@/interfaces/ResourceType";
 import { Tag } from "@/interfaces/TagType";
-import { isValidImaage, resourceTypeToColor } from "@/lib/util";
+import { isAdmin, isValidImaage, resourceTypeToColor } from "@/lib/util";
 import { ResourceTypeBadge } from "./ResourceTypeBadge";
 import { ResourceTypeEnum } from "@/interfaces/ResourceTypeEnum";
 import { ModelSpecificBox } from "../models/ModelSpecificBox";
@@ -59,6 +59,8 @@ import { PrivateResourceTooltip } from "@/components/resources/PrivateResourceTo
 import { useAuth } from "react-oidc-context";
 import { ResourceVerification } from "./ResourceVerification";
 import { ResourceAuthor } from "@/interfaces/ResourceAuthor.ts";
+import { VerificationControls } from "./admin/VerificationControls";
+import { VerificationActivities } from "./VerificationActivities";
 
 async function getResource(id: string) {
   const response = await api.get(`${CONTROLLER.resources}/public/${id}`);
@@ -72,6 +74,7 @@ const ResourceDetails = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
   const auth = useAuth();
+
   useEffect(() => {
     if (!id || auth.isLoading) return;
 
@@ -112,6 +115,8 @@ const ResourceDetails = () => {
     );
   };
 
+  const isAdminUser = isAdmin(auth.user?.profile.email || "");
+
   return (
     <>
       <Container maxW="breakpoint-lg" mx="auto" p={4} mt={16}>
@@ -142,12 +147,20 @@ const ResourceDetails = () => {
           justifyContent="space-between"
         >
           <Box w={"full"}>
-            <HStack gap={2} flexWrap="wrap">
-              <ResourceTypeBadge type={resource.type} />
-              <ResourceVerification
-                resource={resource}
-                setResource={setResource}
-              />
+            <HStack justifyContent="space-between" w="full">
+              <HStack gap={2} flexWrap="wrap">
+                <ResourceTypeBadge type={resource.type} />
+                <ResourceVerification
+                  resource={resource}
+                  setResource={setResource}
+                />
+              </HStack>
+              {isAdminUser && (
+                <VerificationControls
+                  resource={resource}
+                  setResource={setResource}
+                />
+              )}
             </HStack>
             <HStack
               mt={1}
@@ -188,7 +201,7 @@ const ResourceDetails = () => {
             <HStack mt={8} wrap={"wrap"}>
               {resource.authors.map((author: ResourceAuthor) => {
                 return (
-                  <HStack>
+                  <HStack key={author.authorId}>
                     <Avatar.Root shape="full" size="xs">
                       <Avatar.Fallback name={author.authorId} />
                       <Avatar.Image src={author.authorId} />
@@ -216,6 +229,8 @@ const ResourceDetails = () => {
             )}
           </Box>
         </HStack>
+
+        <VerificationActivities resource={resource} />
 
         <Separator my={6} />
         <Box>

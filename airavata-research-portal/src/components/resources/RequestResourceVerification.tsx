@@ -1,6 +1,11 @@
 import { Resource } from "@/interfaces/ResourceType";
-import { Button, Dialog, useDialog, CloseButton } from "@chakra-ui/react";
+import api from "@/lib/api";
+import { CONTROLLER } from "@/lib/controller";
+import { Button, Dialog, useDialog, CloseButton, Text } from "@chakra-ui/react";
+import { useState } from "react";
 import { MdOutlineVerifiedUser } from "react-icons/md";
+import { StatusEnum } from "@/interfaces/StatusEnum";
+import { IoMdClose } from "react-icons/io";
 
 export const RequestResourceVerification = ({
   resource,
@@ -9,10 +14,15 @@ export const RequestResourceVerification = ({
   resource: Resource;
   onRequestSubmitted?: () => void;
 }) => {
+  const [verificationRequestLoading, setVerificationRequestLoading] =
+    useState(false);
   const dialog = useDialog();
 
   const onSubmitForVerification = async () => {
     console.log("Submitting resource for verification:", resource.id);
+    setVerificationRequestLoading(true);
+    await api.post(`${CONTROLLER.resources}/${resource.id}/verify`);
+    setVerificationRequestLoading(false);
     dialog.setOpen(false);
     onRequestSubmitted?.();
   };
@@ -27,10 +37,24 @@ export const RequestResourceVerification = ({
               <Dialog.Title>Resource Verification</Dialog.Title>
             </Dialog.Header>
             <Dialog.Body>
-              When you submit <b>{resource.name}</b> for verification, the
-              Airavata team will review it to ensure it meets the necessary
-              safety standards. This process may take some time, and you will be
-              notified once the verification is complete.
+              {resource.status === StatusEnum.NONE && (
+                <Text>
+                  When you submit <b>{resource.name}</b> for verification, the
+                  Airavata team will review it to ensure it meets the necessary
+                  safety standards. This process may take some time, and you
+                  will be notified once the verification is complete.
+                </Text>
+              )}
+
+              {resource.status === StatusEnum.REJECTED && (
+                <Text>
+                  Unfortunately, we found issues with <b>{resource.name}</b>{" "}
+                  that prevents it from being verified by our team. Please find
+                  our comments on the resource details page. After you have made
+                  those changes, you may re-submit this resource for
+                  verification.
+                </Text>
+              )}
             </Dialog.Body>
             <Dialog.Footer>
               <Button
@@ -48,16 +72,32 @@ export const RequestResourceVerification = ({
         </Dialog.Positioner>
       </Dialog.RootProvider>
 
-      <Button
-        size="2xs"
-        colorPalette={"yellow"}
-        onClick={() => {
-          dialog.setOpen(true);
-        }}
-      >
-        <MdOutlineVerifiedUser />
-        Request Verification
-      </Button>
+      {resource.status === StatusEnum.NONE && (
+        <Button
+          size="2xs"
+          colorPalette={"yellow"}
+          onClick={() => {
+            dialog.setOpen(true);
+          }}
+          loading={verificationRequestLoading}
+        >
+          <MdOutlineVerifiedUser />
+          Request Verification
+        </Button>
+      )}
+
+      {resource.status === StatusEnum.REJECTED && (
+        <Button
+          size="2xs"
+          colorPalette={"red"}
+          onClick={() => {
+            dialog.setOpen(true);
+          }}
+        >
+          <IoMdClose />
+          Verification Rejected
+        </Button>
+      )}
     </>
   );
 };

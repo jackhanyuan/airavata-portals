@@ -51,6 +51,26 @@ export const ResourceVerification = ({
         </Tooltip>
       )}
 
+      {isAuthor && resource.status === StatusEnum.REJECTED && (
+        <Tooltip content="The rejected status is only visible to this resource's authors. Please see below for details.">
+          <RequestResourceVerification
+            resource={resource}
+            onRequestSubmitted={() => {
+              setResource({
+                ...resource,
+                status: StatusEnum.PENDING,
+              } as Resource);
+              toaster.create({
+                title: "Verification Requested",
+                description:
+                  "Your request for resource verification has been submitted.",
+                type: "info",
+              });
+            }}
+          />
+        </Tooltip>
+      )}
+
       {isAuthor && resource.status === StatusEnum.NONE && (
         <>
           <RequestResourceVerification
