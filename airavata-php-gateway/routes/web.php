@@ -30,11 +30,11 @@ Route::get('callback-url', [AccountController::class, 'oauthCallback']);
 Route::get('logout', [AccountController::class, 'logout']);
 Route::post('api-login', [AccountController::class, 'apiLoginSubmit']);
 Route::get('forgot-password', [AccountController::class, 'forgotPassword']);
-Route::get('reset-password', [AccountController::class, 'resetPassword']);
-Route::post('reset-password', [AccountController::class, 'resetPasswordSubmit']);
-Route::post('forgot-password', [AccountController::class, 'forgotPasswordSubmit']);
-Route::get('confirm-user-registration', [AccountController::class, 'confirmAccountCreation']);
-Route::post('confirm-user-registration', [AccountController::class, 'confirmAccountCreation']);
+Route::get('reset-password', [AccountController::class, 'resetPassword'])->middleware('throttle:5,10');
+Route::post('reset-password', [AccountController::class, 'resetPasswordSubmit'])->middleware('throttle:5,10');
+Route::post('forgot-password', [AccountController::class, 'forgotPasswordSubmit'])->middleware('throttle:3,10');
+Route::get('confirm-user-registration', [AccountController::class, 'confirmAccountCreation'])->middleware('throttle:10,10');
+Route::post('confirm-user-registration', [AccountController::class, 'confirmAccountCreation'])->middleware('throttle:10,10');
 Route::get('setUserTimezone', function () {
     Session::put('user_timezone', request('timezone'));
 });
@@ -57,7 +57,7 @@ Route::get('account/user-profile', [UserSettingsController::class, 'getUserProfi
 Route::post('account/user-profile', [UserSettingsController::class, 'updateUserProfile']);
 Route::get('account/user-profile-update-email', [UserSettingsController::class, 'showUpdateEmailView']);
 Route::post('account/user-profile-update-email', [UserSettingsController::class, 'submitUpdateEmail']);
-Route::get('user-profile-confirm-email', [UserSettingsController::class, 'confirmUpdateEmail']);
+Route::get('user-profile-confirm-email', [UserSettingsController::class, 'confirmUpdateEmail'])->middleware('throttle:10,10');
 Route::get('project/create', [ProjectController::class, 'createView']);
 Route::post('project/create', [ProjectController::class, 'createSubmit']);
 Route::get('project/summary', [ProjectController::class, 'summary']);
