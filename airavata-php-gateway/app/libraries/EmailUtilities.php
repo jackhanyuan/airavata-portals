@@ -7,7 +7,7 @@ class EmailUtilities
     public static function sendVerifyEmailAccount($username, $firstName, $lastName, $email){
         $portalConfig = Config::get('pga_config.portal');
         $validTime = isset($portalConfig['mail-verify-code-valid-time']) ? $portalConfig['mail-verify-code-valid-time'] : 30;
-        $code = uniqid();
+        $code = bin2hex(random_bytes(32));
         Cache::put('PGA-VERIFY-EMAIL-' . $username, $code, $validTime);
 
         $emailTemplates = json_decode(File::get(app_path() . '/config/email_templates.json'));
@@ -36,7 +36,7 @@ class EmailUtilities
         if(Cache::has('PGA-VERIFY-EMAIL-' . $username)){
             $storedCode = Cache::get('PGA-VERIFY-EMAIL-' . $username);
             Cache::forget('PGA-VERIFY-EMAIL-' . $username);
-            return $storedCode == $code;
+            return hash_equals($storedCode, $code);
         }else{
             return false;
         }
@@ -45,7 +45,7 @@ class EmailUtilities
     public static function sendVerifyUpdatedEmailAccount($username, $firstName, $lastName, $email){
         $portalConfig = Config::get('pga_config.portal');
         $validTime = isset($portalConfig['mail-verify-code-valid-time']) ? $portalConfig['mail-verify-code-valid-time'] : 30;
-        $code = uniqid();
+        $code = bin2hex(random_bytes(32));
         Cache::put('PGA-VERIFY-UPDATED-EMAIL-' . $username, $code, $validTime);
 
         $emailTemplates = json_decode(File::get(app_path() . '/config/email_templates.json'));
@@ -74,7 +74,7 @@ class EmailUtilities
         if(Cache::has('PGA-VERIFY-UPDATED-EMAIL-' . $username)){
             $storedCode = Cache::get('PGA-VERIFY-UPDATED-EMAIL-' . $username);
             Cache::forget('PGA-VERIFY-UPDATED-EMAIL-' . $username);
-            return $storedCode == $code;
+            return hash_equals($storedCode, $code);
         }else{
             return false;
         }
@@ -84,7 +84,7 @@ class EmailUtilities
     public static function sendPasswordResetEmail($username, $firstName, $lastName, $email){
         $portalConfig = Config::get('pga_config.portal');
         $validTime = isset($portalConfig['mail-verify-code-valid-time']) ? $portalConfig['mail-verify-code-valid-time'] : 30;
-        $code = uniqid();
+        $code = bin2hex(random_bytes(32));
         Cache::put('PGA-RESET-PASSWORD-' . $username, $code, $validTime);
 
         $emailTemplates = json_decode(File::get(app_path() . '/config/email_templates.json'));
@@ -113,7 +113,7 @@ class EmailUtilities
         if(Cache::has('PGA-RESET-PASSWORD-' . $username)){
             $storedCode = Cache::get('PGA-RESET-PASSWORD-' . $username);
             Cache::forget('PGA-RESET-PASSWORD-' . $username);
-            return $storedCode == $code;
+            return hash_equals($storedCode, $code);
         }else{
             return false;
         }
