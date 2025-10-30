@@ -89,6 +89,8 @@ USER_STORAGES = {
     'default': {
         'BACKEND': 'airavata_django_portal_sdk.user_storage.backends.DjangoFileSystemProvider',
         'STORAGE_RESOURCE_ID': '...',
+        # Note: This storage resource ID will be used for both inputStorageResourceId
+        # and outputStorageResourceId when experiments are created/launched.
         'OPTIONS': {
             'directory': '/tmp/experiment-data-dir',
         }

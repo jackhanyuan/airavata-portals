@@ -33,7 +33,8 @@ const FIELDS = [
     type: "boolean",
     default: false,
   },
-  "storageId",
+  "inputStorageResourceId",
+  "outputStorageResourceId",
   "experimentDataDir",
   {
     name: "useUserCRPref",

@@ -74,8 +74,17 @@ def clone(request, experiment_id):
 
 
 def _set_storage_id_and_data_dir(request, experiment):
-    # Storage ID
-    experiment.userConfigurationData.storageId = user_storage.get_default_storage_resource_id(request)
+    # Storage IDs - set both input and output storage resource IDs
+    # Default to the same storage resource ID for both input and output
+    default_storage_id = user_storage.get_default_storage_resource_id(request)
+    
+    # Backward compatibility: if old storageId exists but new fields don't
+    if hasattr(experiment.userConfigurationData, 'storageId') and experiment.userConfigurationData.storageId:
+        default_storage_id = experiment.userConfigurationData.storageId
+    
+    experiment.userConfigurationData.inputStorageResourceId = default_storage_id
+    experiment.userConfigurationData.outputStorageResourceId = default_storage_id
+    
     # Create experiment dir and set it on model
     if not experiment.userConfigurationData.experimentDataDir:
         project = request.airavata_client.getProject(

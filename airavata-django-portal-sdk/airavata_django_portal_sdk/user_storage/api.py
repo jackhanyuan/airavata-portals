@@ -74,6 +74,22 @@ def get_default_storage_resource_id(request):
     return backend.resource_id
 
 
+def get_default_input_storage_resource_id(request):
+    """
+    Get the default input storage resource ID.
+    Defaults to the same storage as the default storage resource.
+    """
+    return get_default_storage_resource_id(request)
+
+
+def get_default_output_storage_resource_id(request):
+    """
+    Get the default output storage resource ID.
+    Defaults to the same storage as the default storage resource.
+    """
+    return get_default_storage_resource_id(request)
+
+
 def save(request, path, file, name=None, content_type=None, storage_resource_id=None, experiment_id=None):
     """
     Save file in path in the user's storage and return DataProduct. If
