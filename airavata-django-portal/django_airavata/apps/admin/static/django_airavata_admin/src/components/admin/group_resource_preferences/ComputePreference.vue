@@ -71,17 +71,78 @@
               </ssh-credential-selector>
             </b-form-group>
             <b-form-group
-              label="Allocation Project Number"
-              label-for="allocation-number"
+              label="Resource Type"
+              label-for="resource-type"
+              :invalid-feedback="validationFeedback.resourceType.invalidFeedback"
+              :state="validationFeedback.resourceType.state"
             >
-              <b-form-input
-                id="allocation-number"
-                type="text"
-                v-model="data.allocationProjectNumber"
+              <b-form-select
+                id="resource-type"
+                v-model="data.resourceType"
+                :options="resourceTypeOptions"
                 :disabled="!userHasWriteAccess"
+                :state="validationFeedback.resourceType.state"
+                @change="onResourceTypeChange"
               >
-              </b-form-input>
+                <template slot="first">
+                  <option :value="null">Select a resource type</option>
+                </template>
+              </b-form-select>
             </b-form-group>
+            <!-- SLURM-specific fields -->
+            <template v-if="isResourceType('SLURM')">
+              <b-form-group
+                label="Allocation Project Number"
+                label-for="allocation-number"
+              >
+                <b-form-input
+                  id="allocation-number"
+                  type="text"
+                  v-model="data.allocationProjectNumber"
+                  :disabled="!userHasWriteAccess"
+                >
+                </b-form-input>
+              </b-form-group>
+            </template>
+            <!-- AWS-specific fields -->
+            <template v-if="isResourceType('AWS')">
+              <b-form-group
+                label="Region"
+                label-for="aws-region"
+              >
+                <b-form-input
+                  id="aws-region"
+                  type="text"
+                  v-model="data.specificPreferences.region"
+                  :disabled="!userHasWriteAccess"
+                >
+                </b-form-input>
+              </b-form-group>
+              <b-form-group
+                label="Preferred AMI ID"
+                label-for="preferred-ami-id"
+              >
+                <b-form-input
+                  id="preferred-ami-id"
+                  type="text"
+                  v-model="data.specificPreferences.preferredAmiId"
+                  :disabled="!userHasWriteAccess"
+                >
+                </b-form-input>
+              </b-form-group>
+              <b-form-group
+                label="Preferred Instance Type"
+                label-for="preferred-instance-type"
+              >
+                <b-form-input
+                  id="preferred-instance-type"
+                  type="text"
+                  v-model="data.specificPreferences.preferredInstanceType"
+                  :disabled="!userHasWriteAccess"
+                >
+                </b-form-input>
+              </b-form-group>
+            </template>
             <b-form-group
               label="Scratch Location"
               label-for="scratch-location"
@@ -133,6 +194,7 @@
         <div class="card">
           <div class="card-body">
             <compute-resource-reservation-list
+              v-if="isResourceType('SLURM')"
               :reservations="data.reservations"
               :queues="queueNames"
               :readonly="!userHasWriteAccess"
@@ -147,40 +209,35 @@
       </div>
     </div>
     <div class="fixed-footer">
-      <b-button 
-      variant="primary" 
-      @click="save" 
-      :disabled="!valid || !userHasWriteAccess"
-        >Save</b-button
+      <b-button
+        variant="primary"
+        @click="save"
+        :disabled="!valid || !userHasWriteAccess"
+      >Save
+      </b-button
       >
-      <delete-button 
-      class="ml-2" 
-      :disabled="!userHasWriteAccess"
-      @delete="remove">
+      <delete-button
+        class="ml-2"
+        :disabled="!userHasWriteAccess"
+        @delete="remove">
         Are you sure you want to remove the preferences for compute resource
         <strong>{{ computeResource.hostName }}</strong
         >?
       </delete-button>
       <b-button class="ml-2" variant="secondary" @click="cancel"
-        >Cancel</b-button
+      >Cancel
+      </b-button
       >
     </div>
   </div>
 </template>
 
 <script>
-import DjangoAiravataAPI from "django-airavata-api";
+import DjangoAiravataAPI, {errors, models, services} from "django-airavata-api";
 import SSHCredentialSelector from "../../credentials/SSHCredentialSelector.vue";
 import ComputeResourceReservationList from "./ComputeResourceReservationList";
 import ComputeResourcePolicyEditor from "./ComputeResourcePolicyEditor";
-
-import { models, services, errors } from "django-airavata-api";
-import {
-  mixins,
-  notifications,
-  errors as uiErrors,
-  components,
-} from "django-airavata-common-ui";
+import {components, errors as uiErrors, mixins, notifications,} from "django-airavata-common-ui";
 
 export default {
   name: "compute-preference",
@@ -210,11 +267,11 @@ export default {
   },
   mounted: function () {
     const computeResourcePromise = this.fetchComputeResource(this.host_id);
-    if (this.localGroupResourceProfile){
-        this.userHasWriteAccess = this.localGroupResourceProfile.userHasWriteAccess;
+    if (this.localGroupResourceProfile) {
+      this.userHasWriteAccess = this.localGroupResourceProfile.userHasWriteAccess;
     }
     if (!this.value && this.id && this.host_id) {
-      services.GroupResourceProfileService.retrieve({ lookup: this.id }).then(
+      services.GroupResourceProfileService.retrieve({lookup: this.id}).then(
         (groupResourceProfile) => {
           this.localGroupResourceProfile = groupResourceProfile;
           this.userHasWriteAccess = this.localGroupResourceProfile.userHasWriteAccess;
@@ -240,19 +297,19 @@ export default {
     } else if (!this.computeResourcePolicy) {
       this.createDefaultComputeResourcePolicy(computeResourcePromise);
     }
-    if (!this.id){
-      this.userHasWriteAccess=true;
+    if (!this.id) {
+      this.userHasWriteAccess = true;
     }
     this.$on("input", this.validate);
-    
+
   },
   data: function () {
     return {
       data: this.value
         ? this.value.clone()
         : new models.GroupComputeResourcePreference({
-            computeResourceId: this.host_id,
-          }),
+          computeResourceId: this.host_id,
+        }),
       localGroupResourceProfile: this.groupResourceProfile
         ? this.groupResourceProfile.clone()
         : null,
@@ -270,6 +327,10 @@ export default {
       reservationsInvalid: false,
       computeResourcePolicyInvalid: false,
       userHasWriteAccess: false,
+      resourceTypeOptions: models.ResourceType.values.map(rt => ({
+        value: rt,
+        text: rt.name,
+      })),
     };
   },
   computed: {
@@ -331,7 +392,7 @@ export default {
             this.validationErrors =
               error.details.response.computePreferences[
                 computePreferencesIndex
-              ];
+                ];
           } else {
             this.validationErrors = null;
             notifications.NotificationList.addError(error);
@@ -341,13 +402,13 @@ export default {
     saveOrUpdate(groupResourceProfile) {
       if (this.id) {
         return DjangoAiravataAPI.services.GroupResourceProfileService.update(
-          { data: groupResourceProfile, lookup: this.id },
-          { ignoreErrors: true }
+          {data: groupResourceProfile, lookup: this.id},
+          {ignoreErrors: true}
         );
       } else {
         return DjangoAiravataAPI.services.GroupResourceProfileService.create(
-          { data: groupResourceProfile },
-          { ignoreErrors: true }
+          {data: groupResourceProfile},
+          {ignoreErrors: true}
         );
       }
     },
@@ -379,12 +440,12 @@ export default {
       if (this.id) {
         this.$router.push({
           name: "group_resource_preference",
-          params: { id: this.id },
+          params: {id: this.id},
         });
       } else {
         this.$router.push({
           name: "new_group_resource_preference",
-          params: { value: this.localGroupResourceProfile },
+          params: {value: this.localGroupResourceProfile},
         });
       }
     },
@@ -424,13 +485,47 @@ export default {
       );
       this.data.reservations.splice(reservationIndex, 1, reservation);
     },
+    onResourceTypeChange() {
+      if (!this.data.resourceType) {
+        this.data.specificPreferences = null;
+        this.validate();
+        return;
+      }
+      if (this.data.resetSpecificPreferences) {
+        this.data.resetSpecificPreferences();
+      } else {
+        const resourceTypeName = this.data.resourceType.name;
+        const modelClassName = this._getPreferenceModelClassName(resourceTypeName);
+        if (modelClassName && models[modelClassName]) {
+          const PreferenceModel = models[modelClassName];
+          this.data.specificPreferences = new PreferenceModel();
+        } else {
+          this.data.specificPreferences = null;
+        }
+      }
+      this.validate();
+    },
+    _getPreferenceModelClassName(resourceTypeName) {
+      // Convert resource type name to model class name
+      // 'SLURM' -> 'SlurmComputeResourcePreference'
+      // 'AWS' -> 'AwsComputeResourcePreference'
+      if (!resourceTypeName) return null;
+      const capitalized = resourceTypeName.charAt(0) + resourceTypeName.slice(1).toLowerCase();
+      return capitalized + 'ComputeResourcePreference';
+    },
+    isResourceType(resourceTypeName) {
+      if (this.data.isResourceType) {
+        return this.data.isResourceType(resourceTypeName);
+      }
+      return this.data.resourceType && this.data.resourceType.name === resourceTypeName;
+    },
   },
   beforeRouteEnter: function (to, from, next) {
     // If we don't have the Group Resource Profile id or instance, then the
     // Group Resource Profile wasn't created and we need to just go back to
     // the dashboard
     if (!to.params.id && !to.params.groupResourceProfile) {
-      next({ name: "group_resource_preference_dashboard" });
+      next({name: "group_resource_preference_dashboard"});
     } else {
       next();
     }

@@ -23,9 +23,13 @@ import ExtendedUserProfileFieldChoice from "./models/ExtendedUserProfileFieldCho
 import ExtendedUserProfileFieldLink from "./models/ExtendedUserProfileFieldLink";
 import FullExperiment from "./models/FullExperiment";
 import Group from "./models/Group";
+import GroupAccountSSHProvisionerConfig from "./models/GroupAccountSSHProvisionerConfig";
 import GroupComputeResourcePreference from "./models/GroupComputeResourcePreference";
 import GroupPermission from "./models/GroupPermission";
 import GroupResourceProfile from "./models/GroupResourceProfile";
+import AwsComputeResourcePreference from "./models/AwsComputeResourcePreference";
+import ResourceType from "./models/ResourceType";
+import SlurmComputeResourcePreference from "./models/SlurmComputeResourcePreference";
 import IAMUserProfile from "./models/IAMUserProfile";
 import InputDataObjectType from "./models/InputDataObjectType";
 import JobState from "./models/JobState";
@@ -71,6 +75,7 @@ const models = {
   ApplicationDeploymentDescription,
   ApplicationInterfaceDefinition,
   ApplicationModule,
+  AwsComputeResourcePreference,
   BaseModel,
   BatchQueue,
   BatchQueueResourcePolicy,
@@ -88,6 +93,7 @@ const models = {
   ExtendedUserProfileFieldLink,
   FullExperiment,
   Group,
+  GroupAccountSSHProvisionerConfig,
   GroupComputeResourcePreference,
   GroupPermission,
   GroupResourceProfile,
@@ -100,8 +106,10 @@ const models = {
   ParallelismType,
   Project,
   ResourcePermissionType,
+  ResourceType,
   SetEnvPaths,
   SharedEntity,
+  SlurmComputeResourcePreference,
   StoragePreference,
   SummaryType,
   UserConfigurationData,
