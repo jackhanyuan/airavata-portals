@@ -189,11 +189,13 @@ class SimpleThriftPool:
     A thread-safe Thrift connection pool that uses raw Thrift and the TBufferedTransport.
     """
 
-    def __init__(self, service, host, port, size=5):
+    def __init__(self, service, host, port, size=5, secure=False, ca_certs=None):
         self._service = service
         self._host = host
         self._port = port
         self._size = size
+        self._secure = secure
+        self._ca_certs = ca_certs or settings.CA_CERTS_PATH
         self._pool = queue.Queue(maxsize=size)
         self._initialize_pool()
 
@@ -202,8 +204,16 @@ class SimpleThriftPool:
             self._pool.put(self._create_connection())
 
     def _create_connection(self):
-        transport = TSocket.TSocket(host=self._host, port=self._port)
-        transport = TTransport.TBufferedTransport(transport)
+        if self._secure:
+            socket = TSSLSocket.TSSLSocket(
+                host=self._host,
+                port=self._port,
+                cert_reqs=ssl.CERT_REQUIRED,
+                ca_certs=self._ca_certs,
+            )
+        else:
+            socket = TSocket.TSocket(host=self._host, port=self._port)
+        transport = TTransport.TBufferedTransport(socket)
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
         client = self._service.Client(protocol)
         transport.open()
@@ -294,7 +304,9 @@ class UserProfileServiceThriftClient(MultiplexThriftClientMixin,
 airavata_api_client_pool = SimpleThriftPool(
     Airavata,
     settings.AIRAVATA_API_HOST,
-    settings.AIRAVATA_API_PORT
+    settings.AIRAVATA_API_PORT,
+    secure=settings.AIRAVATA_API_SECURE,
+    ca_certs=settings.CA_CERTS_PATH,
 )
 group_manager_client_pool = connection_pool.ClientPool(
     GroupManagerService,
