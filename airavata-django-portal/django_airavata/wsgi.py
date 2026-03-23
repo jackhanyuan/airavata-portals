@@ -9,6 +9,9 @@ https://docs.djangoproject.com/en/1.10/howto/deployment/wsgi/
 
 import os
 
+os.environ.setdefault('GRPC_ENABLE_FORK_SUPPORT', '1')
+os.environ.setdefault('GRPC_POLL_STRATEGY', 'poll')
+
 from django.core.wsgi import get_wsgi_application
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_airavata.settings")

@@ -220,7 +220,24 @@ class SimpleThriftPool:
         return {'client': client, 'transport': transport}
 
     def get_connection(self):
-        return self._pool.get()
+        conn = self._pool.get()
+        if not self._is_alive(conn):
+            log.debug("Stale connection detected, creating new one")
+            try:
+                conn['transport'].close()
+            except Exception:
+                pass
+            conn = self._create_connection()
+        return conn
+
+    def _is_alive(self, conn):
+        try:
+            if not conn['transport'].isOpen():
+                return False
+            conn['client'].getAPIVersion()
+            return True
+        except Exception:
+            return False
 
     def return_connection(self, conn):
         try:
