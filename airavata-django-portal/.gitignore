@@ -21,3 +21,5 @@ yarn-error.log
 .pytest_cache/
 .ruff_cache/
 __pycache__/
+# devstack: staged copy of the sibling airavata-python-sdk (built into the portal image)
+.devstack-sdk/

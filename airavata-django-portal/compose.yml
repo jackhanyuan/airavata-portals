@@ -1,0 +1,34 @@
+name: airavata-portal
+services:
+  airavata-django-portal:
+    image: airavata-django-portal:dev
+    container_name: airavata-django-portal
+    working_dir: /workspace/airavata-portals/airavata-django-portal
+    entrypoint: []                      # override image ENTRYPOINT so `command` runs via uv
+    command: uv run python manage.py runserver 0.0.0.0:8000
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ".:/workspace/airavata-portals/airavata-django-portal"   # writable source mount (autoreload via polling)
+      # anonymous volumes preserve image-built artifacts the host source mount would shadow:
+      - "/workspace/airavata-portals/airavata-django-portal/.venv"   # uv venv (incl. the editable SDK)
+      - "/workspace/airavata-portals/airavata-django-portal/django_airavata/apps/api/static/django_airavata_api"
+      - "/workspace/airavata-portals/airavata-django-portal/django_airavata/static/common/dist"
+      - "/workspace/airavata-portals/airavata-django-portal/django_airavata/apps/admin/static/django_airavata_admin"
+      - "/workspace/airavata-portals/airavata-django-portal/django_airavata/apps/groups/static/django_airavata_groups"
+      - "/workspace/airavata-portals/airavata-django-portal/django_airavata/apps/auth/static/django_airavata_auth"
+      - "/workspace/airavata-portals/airavata-django-portal/django_airavata/apps/workspace/static/django_airavata_workspace"
+      - "/workspace/airavata-portals/airavata-django-portal/django_airavata/apps/dataparsers/static/django_airavata_dataparsers"
+    networks:
+      airavata-devstack: {}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.airavata-gateway.rule=Host(`gateway.airavata.host`)
+      - traefik.http.routers.airavata-gateway.entrypoints=web,websecure
+      - traefik.http.routers.airavata-gateway.tls=true
+      - traefik.http.services.airavata-gateway.loadbalancer.server.port=8000
+      - traefik.docker.network=airavata-devstack
+networks:
+  airavata-devstack:
+    external: true

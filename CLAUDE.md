@@ -50,6 +50,11 @@ uv run ty check                                   # Python type check (ty)
 ./lint_js.sh                                      # JS lint (ESLint + Prettier)
 ```
 
+Recommended: run the whole stack with Tilt — `tilt up` in the `airavata` repo,
+then `tilt up --port 10351` here (serves the portal at
+https://gateway.airavata.host). Prerequisite: `./devstack/devstack setup` (once)
+before first use. See the `Tiltfile` at the repo root and `devstack/README.md`.
+
 ### Django Apps
 
 Each app under `django_airavata/apps/` is self-contained with its own frontend:

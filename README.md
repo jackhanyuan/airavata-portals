@@ -2,6 +2,38 @@
 
 The `airavata-portals` repository is a consolidated home for all web-based user interfaces built on top of the [Apache Airavata](https://airavata.apache.org/) middleware platform. This collection of frontend components and frameworks enables seamless interaction with Airavata's powerful orchestration, identity, data, and compute services.
 
+## Running locally with Tilt
+
+The Django portal runs as a container tenant on the shared `airavata-devstack`
+substrate (one colima VM, one Traefik ingress serving `*.airavata.host`), managed
+with [Tilt](https://tilt.dev). The two stacks run as separate Tilt instances.
+
+### One-time setup
+
+```bash
+# From either repo — both carry the identical devstack kit
+./devstack/devstack setup
+```
+
+This installs colima, mkcert, dnsmasq, creates the shared VM and Traefik ingress,
+and configures wildcard DNS for `*.airavata.host` → `127.0.0.1` (trusted cert, no `-k`).
+
+### Daily startup
+
+```bash
+# 1. Start the Airavata backend stack (in the apache/airavata repo)
+cd ../airavata && tilt up
+
+# 2. Start the portals (this repo) on a distinct Tilt port
+tilt up --port 10351
+```
+
+The Django portal is then served at **https://gateway.airavata.host** (trusted
+HTTPS via the shared Traefik ingress). The portal runs inside the shared colima VM
+as a container; `settings_local.py` is generated automatically on first `tilt up`
+if the file does not exist. Only the Django portal is wired into the Tiltfile today;
+other portals can be added as additional resources later.
+
 ## Repository Structure
 
 This repository contains the following sub-projects and templates:

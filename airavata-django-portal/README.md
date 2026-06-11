@@ -27,6 +27,13 @@ any yarn commands. See
 [the Yarn package manager](https://classic.yarnpkg.com/lang/en/) for information
 on how to install Yarn 1 (Classic).
 
+> **Recommended (Tilt + devstack):** run the portal as a container against a
+> local Apache Airavata stack, both managed with [Tilt](https://tilt.dev).
+> One-time setup: `./devstack/devstack setup` (from the `airavata-portals` root).
+> Then `cd ../airavata && tilt up`, and from the `airavata-portals` repo
+> `tilt up --port 10351`. The portal is served at <https://gateway.airavata.host>
+> (trusted HTTPS, no `-k`). The manual steps below are the equivalent without Tilt.
+
 This project uses [uv](https://docs.astral.sh/uv/) for Python dependency
 management. The portal has **no database** — there is nothing to migrate, and
 all persistence goes through the Airavata gRPC API and the cache.
