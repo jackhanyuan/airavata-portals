@@ -1,7 +1,7 @@
 import logging
 import os
-from collections.__init__ import OrderedDict
-from datetime import datetime, timezone
+from collections import OrderedDict
+from datetime import UTC, datetime
 from pathlib import Path
 
 from django.conf import settings
@@ -23,7 +23,7 @@ class GenericAPIBackedViewSet(web.GenericViewSet):
     # Make lookup_value_regex to any set of non-forward-slash characters. Many
     # Airavata ids contains period ('.') which the default lookup_value_regex
     # in DRF doesn't allow.
-    lookup_value_regex = '[^/]+'
+    lookup_value_regex = "[^/]+"
 
     def get_list(self):
         """
@@ -69,9 +69,9 @@ class GenericAPIBackedViewSet(web.GenericViewSet):
         return self.request.authz_token
 
 
-class ReadOnlyAPIBackedViewSet(web.mixins.RetrieveModelMixin,
-                               web.mixins.ListModelMixin,
-                               GenericAPIBackedViewSet):
+class ReadOnlyAPIBackedViewSet(
+    web.mixins.RetrieveModelMixin, web.mixins.ListModelMixin, GenericAPIBackedViewSet
+):
     """
     A viewset that provides default `retrieve()` and `list()` actions.
 
@@ -79,15 +79,18 @@ class ReadOnlyAPIBackedViewSet(web.mixins.RetrieveModelMixin,
     * get_list(self)
     * get_instance(self, lookup_value)
     """
+
     pass
 
 
-class APIBackedViewSet(web.mixins.CreateModelMixin,
-                       web.mixins.RetrieveModelMixin,
-                       web.mixins.UpdateModelMixin,
-                       web.mixins.DestroyModelMixin,
-                       web.mixins.ListModelMixin,
-                       GenericAPIBackedViewSet):
+class APIBackedViewSet(
+    web.mixins.CreateModelMixin,
+    web.mixins.RetrieveModelMixin,
+    web.mixins.UpdateModelMixin,
+    web.mixins.DestroyModelMixin,
+    web.mixins.ListModelMixin,
+    GenericAPIBackedViewSet,
+):
     """
     A viewset that provides default `create()`, `retrieve()`, `update()`,
     `partial_update()`, `destroy()` and `list()` actions.
@@ -99,14 +102,17 @@ class APIBackedViewSet(web.mixins.CreateModelMixin,
     * perform_update(self, serializer)
     * perform_destroy(self, instance)
     """
+
     pass
 
 
-class SdkResourceViewSet(web.mixins.CreateModelMixin,
-                         web.mixins.RetrieveModelMixin,
-                         web.mixins.UpdateModelMixin,
-                         web.mixins.ListModelMixin,
-                         GenericAPIBackedViewSet):
+class SdkResourceViewSet(
+    web.mixins.CreateModelMixin,
+    web.mixins.RetrieveModelMixin,
+    web.mixins.UpdateModelMixin,
+    web.mixins.ListModelMixin,
+    GenericAPIBackedViewSet,
+):
     """CRUD over an SDK ``*_resources`` helper that returns proto-direct values
     (protos / ``WithAccess`` envelopes), rendered by the global ``ProtoJSONRenderer``.
 
@@ -173,16 +179,17 @@ class SdkResourceViewSet(web.mixins.CreateModelMixin,
         return self.request.data if isinstance(self.request.data, dict) else {}
 
     def get_instance(self, lookup_value):
-        return getattr(self.sdk(), self.get_fn)(
-            self.request.airavata, *self.get_args(lookup_value),
-            **self.extra_kwargs())
+        return getattr(self.sdk(), self.get_fn)(  # ty: ignore[invalid-argument-type]  # get_fn set by subclass
+            self.request.airavata, *self.get_args(lookup_value), **self.extra_kwargs()
+        )
 
     def _list_results(self, limit=-1, offset=0):
         kwargs = dict(self.list_kwargs())
         if self.paginate:
             kwargs.update(limit=limit, offset=offset)
-        return getattr(self.sdk(), self.list_fn)(
-            self.request.airavata, *self.list_args(), **kwargs)
+        return getattr(self.sdk(), self.list_fn)(  # ty: ignore[invalid-argument-type]  # list_fn set by subclass
+            self.request.airavata, *self.list_args(), **kwargs
+        )
 
     def list(self, request, *args, **kwargs):
         if self.paginate:
@@ -203,23 +210,25 @@ class SdkResourceViewSet(web.mixins.CreateModelMixin,
         return Response(self.render(self.get_object()))
 
     def create(self, request, *args, **kwargs):
-        result = getattr(self.sdk(), self.create_fn)(
-            request.airavata, *self.create_args(self._body()),
-            **self.extra_kwargs())
+        result = getattr(self.sdk(), self.create_fn)(  # ty: ignore[invalid-argument-type]  # create_fn set by subclass
+            request.airavata, *self.create_args(self._body()), **self.extra_kwargs()
+        )
         return Response(self.render(result), status=201)
 
     def update(self, request, *args, **kwargs):
-        lookup_value = self.kwargs[self.lookup_field or 'pk']
-        result = getattr(self.sdk(), self.update_fn)(
-            request.airavata, *self.update_args(lookup_value, self._body()),
-            **self.extra_kwargs())
+        lookup_value = self.kwargs[self.lookup_field or "pk"]
+        result = getattr(self.sdk(), self.update_fn)(  # ty: ignore[invalid-argument-type]  # update_fn set by subclass
+            request.airavata,
+            *self.update_args(lookup_value, self._body()),
+            **self.extra_kwargs(),
+        )
         return Response(self.render(result))
 
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
 
 
-class APIResultIterator(object):
+class APIResultIterator:
     """
     Iterable container over API results which allow limit/offset style slicing.
     """
@@ -235,8 +244,7 @@ class APIResultIterator(object):
 
     def __iter__(self):
         results = self.get_results(self.limit, self.offset)
-        for result in results:
-            yield result
+        yield from results
 
     def __getitem__(self, key):
         if isinstance(key, slice):
@@ -253,11 +261,13 @@ class APIResultPagination(web.LimitOffsetPagination):
     have a known count, so it isn't always possible to know how many pages there
     are.
     """
+
     default_limit = 10
 
     def paginate_queryset(self, queryset, request, view=None):
-        assert isinstance(
-            queryset, APIResultIterator), "queryset is not an APIResultIterator: {}".format(queryset)
+        assert isinstance(queryset, APIResultIterator), (
+            f"queryset is not an APIResultIterator: {queryset}"
+        )
         self.query_params = queryset.query_params.copy()
         self.limit = self.get_limit(request)
         if self.limit is None:
@@ -269,27 +279,33 @@ class APIResultPagination(web.LimitOffsetPagination):
         # When a paged view is called from another view (for example, to get the
         # initial data to display), this pagination class needs to know the name
         # of the view being paginated.
-        if view and hasattr(view, 'pagination_viewname'):
+        if view and hasattr(view, "pagination_viewname"):
             self.viewname = view.pagination_viewname
 
-        return list(queryset[self.offset:self.offset + self.limit])
+        return list(queryset[self.offset : self.offset + self.limit])
 
     def get_limit(self, request):
         # If limit <= 0 then don't paginate
-        if self.limit_query_param in request.query_params and int(
-                request.query_params[self.limit_query_param]) <= 0:
+        if (
+            self.limit_query_param in request.query_params
+            and int(request.query_params[self.limit_query_param]) <= 0
+        ):
             return None
         return super().get_limit(request)
 
     def get_paginated_response(self, data):
         has_next_link = len(data) >= self.limit
-        return Response(OrderedDict([
-            ('next', self.get_next_link() if has_next_link else None),
-            ('previous', self.get_previous_link()),
-            ('results', data),
-            ('limit', self.limit),
-            ('offset', self.offset)
-        ]))
+        return Response(
+            OrderedDict(
+                [
+                    ("next", self.get_next_link() if has_next_link else None),
+                    ("previous", self.get_previous_link()),
+                    ("results", data),
+                    ("limit", self.limit),
+                    ("offset", self.offset),
+                ]
+            )
+        )
 
     def get_next_link(self):
         url = self.get_base_url()
@@ -312,7 +328,7 @@ class APIResultPagination(web.LimitOffsetPagination):
         return replace_query_param(url, self.offset_query_param, offset)
 
     def get_base_url(self):
-        if hasattr(self, 'viewname'):
+        if hasattr(self, "viewname"):
             base_url = self.request.build_absolute_uri(reverse(self.viewname))
             if len(self.query_params) > 0:
                 base_url += f"?{self.query_params.urlencode()}"
@@ -324,11 +340,9 @@ class APIResultPagination(web.LimitOffsetPagination):
 def convert_utc_iso8601_to_date(iso8601_utc_string):
     # This is meant to convert a JavaScript `new Date().toJSON()` into a
     # datetime instance
-    timestamp = datetime.strptime(
-        iso8601_utc_string, "%Y-%m-%dT%H:%M:%S.%fZ")
-    timestamp = timestamp.replace(tzinfo=timezone.utc)
-    logger.debug("convert_utc_iso8601_to_date({})={}".format(
-        iso8601_utc_string, timestamp))
+    timestamp = datetime.strptime(iso8601_utc_string, "%Y-%m-%dT%H:%M:%S.%fZ")
+    timestamp = timestamp.replace(tzinfo=UTC)
+    logger.debug(f"convert_utc_iso8601_to_date({iso8601_utc_string})={timestamp}")
     return timestamp
 
 
@@ -338,8 +352,7 @@ class IsInAdminsGroupPermission(web.permissions.BasePermission):
     def has_permission(self, request, view):
         # Read Only Admins can make GET requests only
         if request.method in web.SAFE_METHODS:
-            return (request.is_gateway_admin or
-                    request.is_read_only_gateway_admin)
+            return request.is_gateway_admin or request.is_read_only_gateway_admin
         else:
             return request.is_gateway_admin
 
@@ -350,19 +363,19 @@ class ReadOnly(web.permissions.BasePermission):
 
 
 def is_shared_dir(path):
-    shared_dirs: dict = getattr(settings, 'GATEWAY_DATA_SHARED_DIRECTORIES', {})
-    return any(map(lambda n: Path(n) == Path(path), shared_dirs.keys()))
+    shared_dirs: dict = getattr(settings, "GATEWAY_DATA_SHARED_DIRECTORIES", {})
+    return any(Path(n) == Path(path) for n in shared_dirs)
 
 
 def is_shared_path(path):
-    shared_dirs: dict = getattr(settings, 'GATEWAY_DATA_SHARED_DIRECTORIES', {})
+    shared_dirs: dict = getattr(settings, "GATEWAY_DATA_SHARED_DIRECTORIES", {})
     # FIXME: path returned when creating a new directory in user storage is an
     # absolute path. Assume that when an absolute path is given that it was for
     # a newly created directory and so it is not a shared path
     if os.path.isabs(path):
         return False
     # check if path starts with a shared directory
-    return any(map(lambda n: os.path.commonpath((n, path)) == n, shared_dirs.keys()))
+    return any(os.path.commonpath((n, path)) == n for n in shared_dirs)
 
 
 class BaseSharedDirPermission(web.permissions.BasePermission):
@@ -380,7 +393,7 @@ class BaseSharedDirPermission(web.permissions.BasePermission):
         shared_dir = is_shared_dir(path)
         if shared_path:
             # No user can delete a shared directory
-            if shared_dir and request.method == 'DELETE':
+            if shared_dir and request.method == "DELETE":
                 return False
             # Only admins can create/update/delete files/directories in a shared directory
             return request.is_gateway_admin
@@ -402,23 +415,24 @@ def data_product_file_path(data_product):
     file_path = replicas[0].file_path
     if not file_path:
         return None
-    if not (file_path.startswith('/') or file_path.startswith('~/')):
-        file_path = '~/' + file_path
+    if not (file_path.startswith("/") or file_path.startswith("~/")):
+        file_path = "~/" + file_path
     return file_path
 
 
 class DataProductSharedDirPermission(BaseSharedDirPermission):
     def get_path(self, request, view) -> str:
         data_product_uri = request.query_params.get(
-            'data-product-uri', request.query_params.get('product-uri', ''))
-        data_product = request.airavata.research.get_data_product(
-            data_product_uri)
+            "data-product-uri", request.query_params.get("product-uri", "")
+        )
+        data_product = request.airavata.research.get_data_product(data_product_uri)
         file_path = data_product_file_path(data_product)
         return file_path or ""
 
 
 class UserStorageSharedDirPermission(BaseSharedDirPermission):
-
     def get_path(self, request, view):
         # 'path' can be a url path parameter, query parameter or in the request body (data)
-        return request.query_params.get('path', request.data.get('path', view.kwargs.get('path')))
+        return request.query_params.get(
+            "path", request.data.get("path", view.kwargs.get("path"))
+        )

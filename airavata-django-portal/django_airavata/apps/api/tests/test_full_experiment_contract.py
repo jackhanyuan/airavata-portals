@@ -27,15 +27,13 @@ keys only, enums as NAMES, timestamps as epoch-millis strings, NO camelCase, NO
 hyperlinks.
 """
 
-from django.test import SimpleTestCase
-
-from airavata_sdk.generated.org.apache.airavata.model.appcatalog.appdeployment import (  # noqa: E501
+from airavata_sdk.generated.org.apache.airavata.model.appcatalog.appdeployment import (
     app_deployment_pb2,
 )
-from airavata_sdk.generated.org.apache.airavata.model.appcatalog.appinterface import (  # noqa: E501
+from airavata_sdk.generated.org.apache.airavata.model.appcatalog.appinterface import (
     app_interface_pb2,
 )
-from airavata_sdk.generated.org.apache.airavata.model.appcatalog.computeresource import (  # noqa: E501
+from airavata_sdk.generated.org.apache.airavata.model.appcatalog.computeresource import (
     compute_resource_pb2,
 )
 from airavata_sdk.generated.org.apache.airavata.model.application.io import (
@@ -60,110 +58,185 @@ from airavata_sdk.generated.org.apache.airavata.model.workspace import (
     workspace_pb2,
 )
 from airavata_sdk.helpers.research_resources import get_full_experiment
-from django_airavata.apps.api.proto_render import to_jsonable
+from django.test import SimpleTestCase
 
+from django_airavata.apps.api.proto_render import to_jsonable
 
 # ---------------------------------------------------------------------------
 # Representative composite protos
 # ---------------------------------------------------------------------------
 
+
 def _make_experiment():
     job = job_pb2.JobModel(
-        job_id="job-1", task_id="task-1", process_id="proc-1", job_name="J",
+        job_id="job-1",
+        task_id="task-1",
+        process_id="proc-1",
+        job_name="J",
         creation_time=1705320000000,
-        job_statuses=[status_pb2.JobStatus(
-            job_state=status_pb2.JobState.ACTIVE,
-            time_of_state_change=1705320001000, reason="r", status_id="js-1")])
+        job_statuses=[
+            status_pb2.JobStatus(
+                job_state=status_pb2.JobState.ACTIVE,
+                time_of_state_change=1705320001000,
+                reason="r",
+                status_id="js-1",
+            )
+        ],
+    )
     task = task_pb2.TaskModel(
-        task_id="task-1", task_type=task_pb2.TaskTypes.JOB_SUBMISSION,
-        parent_process_id="proc-1", creation_time=1705320000000,
-        task_statuses=[status_pb2.TaskStatus(
-            state=status_pb2.TaskState.TASK_STATE_COMPLETED,
-            time_of_state_change=1705320002000, reason="ok",
-            status_id="ts-1")],
-        jobs=[job])
-    process = process_pb2.ProcessModel(
-        process_id="proc-1", experiment_id="exp-contract-1",
+        task_id="task-1",
+        task_type=task_pb2.TaskTypes.JOB_SUBMISSION,
+        parent_process_id="proc-1",
         creation_time=1705320000000,
-        process_statuses=[status_pb2.ProcessStatus(
-            state=status_pb2.ProcessState.PROCESS_STATE_COMPLETED,
-            time_of_state_change=1705320003000, reason="done",
-            status_id="ps-1", process_id="proc-1")],
-        tasks=[task])
+        task_statuses=[
+            status_pb2.TaskStatus(
+                state=status_pb2.TaskState.TASK_STATE_COMPLETED,
+                time_of_state_change=1705320002000,
+                reason="ok",
+                status_id="ts-1",
+            )
+        ],
+        jobs=[job],
+    )
+    process = process_pb2.ProcessModel(
+        process_id="proc-1",
+        experiment_id="exp-contract-1",
+        creation_time=1705320000000,
+        process_statuses=[
+            status_pb2.ProcessStatus(
+                state=status_pb2.ProcessState.PROCESS_STATE_COMPLETED,
+                time_of_state_change=1705320003000,
+                reason="done",
+                status_id="ps-1",
+                process_id="proc-1",
+            )
+        ],
+        tasks=[task],
+    )
     ucd = experiment_pb2.UserConfigurationDataModel(
         airavata_auto_schedule=False,
         computational_resource_scheduling=(
             scheduling_pb2.ComputationalResourceSchedulingModel(
-                resource_host_id="comp-1", total_cpu_count=4, node_count=1,
-                queue_name="normal", wall_time_limit=30)))
+                resource_host_id="comp-1",
+                total_cpu_count=4,
+                node_count=1,
+                queue_name="normal",
+                wall_time_limit=30,
+            )
+        ),
+    )
     return experiment_pb2.ExperimentModel(
-        experiment_id="exp-contract-1", project_id="proj-contract-1",
+        experiment_id="exp-contract-1",
+        project_id="proj-contract-1",
         gateway_id="default",
         experiment_type=experiment_pb2.ExperimentType.SINGLE_APPLICATION,
-        user_name="alice", experiment_name="Contract Experiment",
-        creation_time=1705320000000, description="desc",
-        execution_id="iface-1", email_addresses=["a@x.org"],
+        user_name="alice",
+        experiment_name="Contract Experiment",
+        creation_time=1705320000000,
+        description="desc",
+        execution_id="iface-1",
+        email_addresses=["a@x.org"],
         user_configuration_data=ucd,
-        experiment_inputs=[io.InputDataObjectType(
-            name="in1", value="airavata-dp://in", type=io.DataType.URI,
-            input_order=1, is_required=True)],
-        experiment_outputs=[io.OutputDataObjectType(
-            name="out1", value="airavata-dp://out", type=io.DataType.URI)],
-        experiment_status=[status_pb2.ExperimentStatus(
-            state=status_pb2.ExperimentState.EXPERIMENT_STATE_EXECUTING,
-            time_of_state_change=1705320004000, reason="running",
-            status_id="es-1")],
-        processes=[process])
+        experiment_inputs=[
+            io.InputDataObjectType(
+                name="in1",
+                value="airavata-dp://in",
+                type=io.DataType.URI,
+                input_order=1,
+                is_required=True,
+            )
+        ],
+        experiment_outputs=[
+            io.OutputDataObjectType(
+                name="out1", value="airavata-dp://out", type=io.DataType.URI
+            )
+        ],
+        experiment_status=[
+            status_pb2.ExperimentStatus(
+                state=status_pb2.ExperimentState.EXPERIMENT_STATE_EXECUTING,
+                time_of_state_change=1705320004000,
+                reason="running",
+                status_id="es-1",
+            )
+        ],
+        processes=[process],
+    )
 
 
 def _make_project():
     return workspace_pb2.Project(
-        project_id="proj-contract-1", owner="alice", gateway_id="default",
-        name="Contract Project", description="p", creation_time=1705320000000)
+        project_id="proj-contract-1",
+        owner="alice",
+        gateway_id="default",
+        name="Contract Project",
+        description="p",
+        creation_time=1705320000000,
+    )
 
 
 def _make_app_interface():
     return app_interface_pb2.ApplicationInterfaceDescription(
-        application_interface_id="iface-1", application_name="App",
-        application_modules=["mod-1"])
+        application_interface_id="iface-1",
+        application_name="App",
+        application_modules=["mod-1"],
+    )
 
 
 def _make_app_module():
     return app_deployment_pb2.ApplicationModule(
-        app_module_id="mod-1", app_module_name="mod",
-        app_module_version="1.0", app_module_description="m")
+        app_module_id="mod-1",
+        app_module_name="mod",
+        app_module_version="1.0",
+        app_module_description="m",
+    )
 
 
 def _make_compute_resource():
     return compute_resource_pb2.ComputeResourceDescription(
-        compute_resource_id="comp-1", host_name="hpc.example.org",
-        resource_description="HPC", enabled=True)
+        compute_resource_id="comp-1",
+        host_name="hpc.example.org",
+        resource_description="HPC",
+        enabled=True,
+    )
 
 
 def _make_data_product(uri, owner_name):
     return rc.DataProductModel(
-        product_uri=uri, gateway_id="default", owner_name=owner_name,
+        product_uri=uri,
+        gateway_id="default",
+        owner_name=owner_name,
         product_name=uri.split("://")[-1],
         data_product_type=rc.DataProductType.FILE,
-        creation_time=1705320000000, last_modified_time=1705320005000,
-        replica_locations=[rc.DataReplicaLocationModel(
-            replica_name="gw copy",
-            replica_location_category=(
-                rc.ReplicaLocationCategory.GATEWAY_DATA_STORE),
-            replica_persistent_type=rc.ReplicaPersistentType.TRANSIENT,
-            storage_resource_id="store-1",
-            file_path="/data/" + uri.split("://")[-1])])
+        creation_time=1705320000000,
+        last_modified_time=1705320005000,
+        replica_locations=[
+            rc.DataReplicaLocationModel(
+                replica_name="gw copy",
+                replica_location_category=(
+                    rc.ReplicaLocationCategory.GATEWAY_DATA_STORE
+                ),
+                replica_persistent_type=rc.ReplicaPersistentType.TRANSIENT,
+                storage_resource_id="store-1",
+                file_path="/data/" + uri.split("://")[-1],
+            )
+        ],
+    )
 
 
 def _make_job():
     return job_pb2.JobModel(
-        job_id="job-1", task_id="task-1", process_id="proc-1", job_name="J",
-        creation_time=1705320000000)
+        job_id="job-1",
+        task_id="task-1",
+        process_id="proc-1",
+        job_name="J",
+        creation_time=1705320000000,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Stub client
 # ---------------------------------------------------------------------------
+
 
 class _FakeResearch:
     def __init__(self):
@@ -229,14 +302,20 @@ def _output_views(_experiment, _app_interface):
 
 
 class FullExperimentContractSnapshotTest(SimpleTestCase):
-
-    def _render(self, *, username="alice", sharing_has_access=True,
-                project_has_read=True, module_has_write=True,
-                dp_write=_dp_write, output_views=_output_views):
-        client = _FakeClient(
-            username=username, sharing_has_access=sharing_has_access)
+    def _render(
+        self,
+        *,
+        username="alice",
+        sharing_has_access=True,
+        project_has_read=True,
+        module_has_write=True,
+        dp_write=_dp_write,
+        output_views=_output_views,
+    ):
+        client = _FakeClient(username=username, sharing_has_access=sharing_has_access)
         result = get_full_experiment(
-            client, "exp-contract-1",
+            client,  # ty: ignore[invalid-argument-type]  # _FakeClient duck-types AiravataClient for this contract test
+            "exp-contract-1",
             project_has_read=project_has_read,
             module_has_write=module_has_write,
             data_product_write_fn=dp_write,
@@ -250,18 +329,26 @@ class FullExperimentContractSnapshotTest(SimpleTestCase):
 
     def test_top_level_key_set(self):
         rendered = self._render()
-        self.assertEqual(set(rendered.keys()), {
-            "experiment_id", "experiment", "project", "application_module",
-            "compute_resource", "input_data_products", "output_data_products",
-            "job_details", "output_views",
-        })
+        self.assertEqual(
+            set(rendered.keys()),
+            {
+                "experiment_id",
+                "experiment",
+                "project",
+                "application_module",
+                "compute_resource",
+                "input_data_products",
+                "output_data_products",
+                "job_details",
+                "output_views",
+            },
+        )
 
     def test_top_level_experiment_id(self):
         self.assertEqual(self._render()["experiment_id"], "exp-contract-1")
 
     def test_output_views_passed_through(self):
-        self.assertEqual(
-            self._render()["output_views"], {"out1": ["view-provider-a"]})
+        self.assertEqual(self._render()["output_views"], {"out1": ["view-provider-a"]})
 
     # ------------------------------------------------------------------
     # Nested experiment (WithAccess[ExperimentModel] flattened)
@@ -280,8 +367,8 @@ class FullExperimentContractSnapshotTest(SimpleTestCase):
         exp = self._render()["experiment"]
         self.assertEqual(exp["experiment_type"], "SINGLE_APPLICATION")
         self.assertEqual(
-            exp["experiment_status"][0]["state"],
-            "EXPERIMENT_STATE_EXECUTING")
+            exp["experiment_status"][0]["state"], "EXPERIMENT_STATE_EXECUTING"
+        )
 
     def test_experiment_timestamp_is_epoch_millis_string(self):
         exp = self._render()["experiment"]
@@ -294,8 +381,7 @@ class FullExperimentContractSnapshotTest(SimpleTestCase):
         self.assertEqual(proc["process_id"], "proc-1")
         task = proc["tasks"][0]
         self.assertEqual(task["task_type"], "JOB_SUBMISSION")
-        self.assertEqual(
-            task["task_statuses"][0]["state"], "TASK_STATE_COMPLETED")
+        self.assertEqual(task["task_statuses"][0]["state"], "TASK_STATE_COMPLETED")
         job = task["jobs"][0]
         self.assertEqual(job["job_id"], "job-1")
         self.assertEqual(job["job_statuses"][0]["job_state"], "ACTIVE")
@@ -351,10 +437,9 @@ class FullExperimentContractSnapshotTest(SimpleTestCase):
         ins = rendered["input_data_products"]
         outs = rendered["output_data_products"]
         self.assertEqual([d["product_uri"] for d in ins], ["airavata-dp://in"])
-        self.assertEqual(
-            [d["product_uri"] for d in outs], ["airavata-dp://out"])
+        self.assertEqual([d["product_uri"] for d in outs], ["airavata-dp://out"])
         # is_owner SDK-trivial (owner_name == username "alice").
-        self.assertTrue(ins[0]["is_owner"])    # owner_name="alice"
+        self.assertTrue(ins[0]["is_owner"])  # owner_name="alice"
         self.assertFalse(outs[0]["is_owner"])  # owner_name="bob"
         # write flag is the resolver result (stub returns True).
         self.assertTrue(ins[0]["user_has_write_access"])
@@ -375,8 +460,12 @@ class FullExperimentContractSnapshotTest(SimpleTestCase):
     def test_data_product_dropped_legacy_keys_absent(self):
         dp = self._render()["input_data_products"][0]
         # The proto-direct data-product contract dropped these legacy aliases.
-        for legacy in ("download_url", "is_input_file_upload", "modified_time",
-                       "filesize"):
+        for legacy in (
+            "download_url",
+            "is_input_file_upload",
+            "modified_time",
+            "filesize",
+        ):
             self.assertNotIn(legacy, dp)
 
     # ------------------------------------------------------------------
@@ -407,22 +496,35 @@ class FullExperimentContractSnapshotTest(SimpleTestCase):
     def test_no_camelcase_keys_anywhere(self):
         for key in self._all_keys(self._render()):
             self.assertEqual(
-                key, key.lower(),
-                f"key {key!r} is not lowercase/snake_case")
+                key, key.lower(), f"key {key!r} is not lowercase/snake_case"
+            )
 
     def test_no_hyperlink_keys_anywhere(self):
         keys = set(self._all_keys(self._render()))
-        for hyperlink in ("url", "full_experiment", "shared_entity",
-                          "experiments", "application_interface",
-                          "application_deployments"):
+        for hyperlink in (
+            "url",
+            "full_experiment",
+            "shared_entity",
+            "experiments",
+            "application_interface",
+            "application_deployments",
+        ):
             self.assertNotIn(hyperlink, keys)
 
     def test_no_legacy_camel_keys(self):
         keys = set(self._all_keys(self._render()))
-        for legacy in ("experimentId", "projectId", "creationTime",
-                       "userHasWriteAccess", "isOwner", "downloadURL",
-                       "computeResource", "applicationModule",
-                       "inputDataProducts", "outputViews"):
+        for legacy in (
+            "experimentId",
+            "projectId",
+            "creationTime",
+            "userHasWriteAccess",
+            "isOwner",
+            "downloadURL",
+            "computeResource",
+            "applicationModule",
+            "inputDataProducts",
+            "outputViews",
+        ):
             self.assertNotIn(legacy, keys)
 
     # ------------------------------------------------------------------
@@ -432,9 +534,13 @@ class FullExperimentContractSnapshotTest(SimpleTestCase):
     def test_chained_sharing_calls_use_write(self):
         client = _FakeClient()
         get_full_experiment(
-            client, "exp-contract-1",
-            project_has_read=True, module_has_write=True,
-            data_product_write_fn=_dp_write, output_views_fn=_output_views)
+            client,  # ty: ignore[invalid-argument-type]  # _FakeClient duck-types AiravataClient for this contract test
+            "exp-contract-1",
+            project_has_read=True,
+            module_has_write=True,
+            data_product_write_fn=_dp_write,
+            output_views_fn=_output_views,
+        )
         # One WRITE lookup for the experiment, one for the project.
         perms = [c[2] for c in client.sharing.calls]
         self.assertEqual(perms, ["WRITE", "WRITE"])

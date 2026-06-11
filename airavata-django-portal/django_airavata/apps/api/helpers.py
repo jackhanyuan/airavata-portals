@@ -1,10 +1,29 @@
 import logging
 
+from airavata_sdk.helpers import compute_resources
 from django.core.cache import cache
 
-from airavata_sdk.helpers import compute_resources
-
 logger = logging.getLogger(__name__)
+
+
+# Per-gateway notification "show in dashboard" flags live in the cache, not the
+# DB (was the api_notificationextension table): {notification_id: bool}. Portal-
+# only UI state with no proto/SDK equivalent; cache eviction just resets the flag
+# to its False default until an admin sets it again.
+def _notif_dashboard_key(gateway_id):
+    return f"notif_show_in_dashboard:{gateway_id}"
+
+
+def show_in_dashboard_map(gateway_id):
+    """Return ``{notification_id: show_in_dashboard}`` for the gateway."""
+    return cache.get(_notif_dashboard_key(gateway_id), {})
+
+
+def set_show_in_dashboard(gateway_id, notification_id, value):
+    """Set (or clear) the show_in_dashboard flag for one notification."""
+    flags = show_in_dashboard_map(gateway_id)
+    flags[notification_id] = bool(value)
+    cache.set(_notif_dashboard_key(gateway_id), flags)
 
 
 # Per-user workspace preferences (most-recent project/group/compute + per-app
@@ -55,10 +74,11 @@ class _ApplicationPreferencesManager:
     def get(self, application_id):
         if application_id not in self._prefs._favorites:
             from django.core.exceptions import ObjectDoesNotExist
+
             raise ObjectDoesNotExist()
         return _ApplicationPreference(
-            self._prefs, application_id,
-            self._prefs._favorites[application_id])
+            self._prefs, application_id, self._prefs._favorites[application_id]
+        )
 
     def create(self, username=None, application_id=None, favorite=False):
         self._prefs._set_favorite(application_id, favorite)
@@ -77,19 +97,19 @@ class WorkspacePreferences:
         self.username = username
         self.most_recent_project_id = data.get("most_recent_project_id")
         self.most_recent_group_resource_profile_id = data.get(
-            "most_recent_group_resource_profile_id")
+            "most_recent_group_resource_profile_id"
+        )
         self.most_recent_compute_resource_id = data.get(
-            "most_recent_compute_resource_id")
+            "most_recent_compute_resource_id"
+        )
         self._favorites = dict(data.get("application_preferences", {}))
         self.applicationpreferences_set = _ApplicationPreferencesManager(self)
 
     def _as_dict(self):
         return {
             "most_recent_project_id": self.most_recent_project_id,
-            "most_recent_group_resource_profile_id":
-                self.most_recent_group_resource_profile_id,
-            "most_recent_compute_resource_id":
-                self.most_recent_compute_resource_id,
+            "most_recent_group_resource_profile_id": self.most_recent_group_resource_profile_id,
+            "most_recent_compute_resource_id": self.most_recent_compute_resource_id,
             "application_preferences": self._favorites,
         }
 
@@ -121,40 +141,55 @@ class WorkspacePreferencesHelper:
         return workspace_preferences
 
     def _create_default(self, request, username):
-        defaults = compute_resources.resolve_workspace_defaults(
-            request.airavata)
-        return WorkspacePreferences(username, {
-            "most_recent_project_id": defaults["most_recent_project_id"],
-            "most_recent_group_resource_profile_id":
-                defaults["most_recent_group_resource_profile_id"],
-        })
+        defaults = compute_resources.resolve_workspace_defaults(request.airavata)
+        return WorkspacePreferences(
+            username,
+            {
+                "most_recent_project_id": defaults["most_recent_project_id"],
+                "most_recent_group_resource_profile_id": defaults[
+                    "most_recent_group_resource_profile_id"
+                ],
+            },
+        )
 
     def _check(self, request, prefs):
         "Validate preference values and update as needed."
-        if (not prefs.most_recent_project_id or
-                not self._can_write(request, prefs.most_recent_project_id)):
-            most_recent_project_id = (
-                compute_resources.most_recent_writeable_project_id(
-                    request.airavata))
+        if not prefs.most_recent_project_id or not self._can_write(
+            request, prefs.most_recent_project_id
+        ):
+            most_recent_project_id = compute_resources.most_recent_writeable_project_id(
+                request.airavata
+            )
             if most_recent_project_id is not None:
-                logger.info("_check: updating most_recent_project_id to {}".format(most_recent_project_id))
+                logger.info(
+                    f"_check: updating most_recent_project_id to {most_recent_project_id}"
+                )
                 prefs.most_recent_project_id = most_recent_project_id
                 prefs.save()
             else:
-                logger.warning("_check: no writeable projects found, unsetting most_recent_project_id")
+                logger.warning(
+                    "_check: no writeable projects found, unsetting most_recent_project_id"
+                )
                 prefs.most_recent_project_id = None
                 prefs.save()
         group_resource_profile_ids = (
-            compute_resources.accessible_group_resource_profile_ids(
-                request.airavata))
-        if (not prefs.most_recent_group_resource_profile_id or
-                prefs.most_recent_group_resource_profile_id not in group_resource_profile_ids):
-            first_grp_id = (group_resource_profile_ids[0]
-                            if len(group_resource_profile_ids) > 0
-                            else None)
-            logger.warning(f"_check: updating "
-                           f"most_recent_group_resource_profile_id to "
-                           f"{first_grp_id}")
+            compute_resources.accessible_group_resource_profile_ids(request.airavata)
+        )
+        if (
+            not prefs.most_recent_group_resource_profile_id
+            or prefs.most_recent_group_resource_profile_id
+            not in group_resource_profile_ids
+        ):
+            first_grp_id = (
+                group_resource_profile_ids[0]
+                if len(group_resource_profile_ids) > 0
+                else None
+            )
+            logger.warning(
+                f"_check: updating "
+                f"most_recent_group_resource_profile_id to "
+                f"{first_grp_id}"
+            )
             prefs.most_recent_group_resource_profile_id = first_grp_id
             prefs.save()
 
@@ -163,5 +198,5 @@ class WorkspacePreferencesHelper:
 
     def _can_read(self, request, entity_id):
         return request.airavata.sharing.user_has_access(
-            resource_id=entity_id, user_id=request.user.username,
-            permission_type="READ")
+            resource_id=entity_id, user_id=request.user.username, permission_type="READ"
+        )

@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
+import contextlib
 import os
 import sys
 
@@ -23,38 +24,42 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'bots0)m91u_i4gpw+103o%2jn#j57wjh7s@9$x*27_4^*jyku4'
+SECRET_KEY = "bots0)m91u_i4gpw+103o%2jn#j57wjh7s@9$x*27_4^*jyku4"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 INTERNAL_IPS = ["127.0.0.1"]
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [".airavata.localhost", "localhost", "127.0.0.1"]
+
+# The portal is served behind the airavata Traefik ingress (TLS terminates at
+# Traefik, which forwards plain HTTP + X-Forwarded-Proto=https). These let Django
+# reconstruct the original https://gateway.airavata.localhost URL so OIDC
+# redirect_uris match Keycloak's whitelist and CSRF accepts the https origin.
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = ["https://gateway.airavata.localhost"]
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'django_airavata.apps.admin.apps.AdminConfig',
-    # The portal no longer uses the Django auth.User model (identity comes from
-    # the Keycloak token), but django.contrib.auth + contenttypes are kept here
-    # for migration-graph compatibility: existing django_airavata_auth
-    # migrations depend on auth/contenttypes parent nodes. They are removable
-    # once those migrations are squashed (Phase C).
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'django_airavata.apps.auth.apps.AuthConfig',
-    'django_airavata.apps.workspace.apps.WorkspaceConfig',
-    'django_airavata.apps.api.apps.ApiConfig',
-    'django_airavata.apps.groups.apps.GroupsConfig',
-    'django_airavata.apps.dataparsers.apps.DataParsersConfig',
-    'django.contrib.humanize',
-
+    "django_airavata.apps.admin.apps.AdminConfig",
+    # No django.contrib.auth / contenttypes: the portal has no database and no
+    # Django User model — identity comes from the verified Keycloak token
+    # (apps/auth/middleware). Sessions are cache-backed and messages use
+    # cookie/session storage, so neither needs a database.
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "django_airavata.apps.auth.apps.AuthConfig",
+    "django_airavata.apps.workspace.apps.WorkspaceConfig",
+    "django_airavata.apps.api.apps.ApiConfig",
+    "django_airavata.apps.groups.apps.GroupsConfig",
+    "django_airavata.apps.dataparsers.apps.DataParsersConfig",
+    "django.contrib.humanize",
     # django-webpack-loader
-    'webpack_loader',
+    "webpack_loader",
 ]
 
 # List of app labels for Airavata apps that should be hidden from menus
@@ -62,110 +67,93 @@ INSTALLED_APPS = [
 HIDDEN_AIRAVATA_APPS = []
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
     # Derive request.user from the Keycloak access token stored in the session
     # (OIDC session flow; no DB User, replaces AuthenticationMiddleware). Must
     # run before authz_token_middleware so request.user is set when
     # get_authz_token runs, and before keycloak_bearer_middleware.
-    'django_airavata.apps.auth.middleware.session_keycloak_user_middleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django_airavata.apps.auth.middleware.authz_token_middleware',
+    "django_airavata.apps.auth.middleware.session_keycloak_user_middleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_airavata.apps.auth.middleware.authz_token_middleware",
     # Validate an Authorization: Bearer <jwt> against Keycloak for token clients
     # (no-op when a session already authenticated the request). Must run AFTER
     # authz_token_middleware so a session login isn't clobbered, and BEFORE the
     # lazy gRPC client / gateway_groups so request.authz_token/user are set.
-    'django_airavata.apps.auth.middleware.keycloak_bearer_middleware',
+    "django_airavata.apps.auth.middleware.keycloak_bearer_middleware",
     # Augment every request with request.data (parsed body) and
     # request.query_params (=request.GET), which views/view_utils read (DRF used
     # to add these on its Request wrapper).
-    'django_airavata.apps.auth.middleware.request_data_middleware',
+    "django_airavata.apps.auth.middleware.request_data_middleware",
     # gRPC AiravataClient (request.airavata). Must come after authz_token_middleware
     # (uses request.authz_token for the access token).
-    'django_airavata.middleware.airavata_grpc_client',
+    "django_airavata.middleware.airavata_grpc_client",
     # Needs to come after authz_token_middleware and airavata_grpc_client.
-    'django_airavata.apps.auth.middleware.gateway_groups_middleware',
+    "django_airavata.apps.auth.middleware.gateway_groups_middleware",
 ]
 
-ROOT_URLCONF = 'django_airavata.urls'
+ROOT_URLCONF = "django_airavata.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, "django_airavata", "templates")],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'django_airavata.context_processors.airavata_app_registry',
-                'django_airavata.commons.dynamic_apps.context_processors.custom_app_registry',
-                'django_airavata.context_processors.get_notifications',
-                'django_airavata.context_processors.user_session_data',
-                'django_airavata.context_processors.google_analytics_tracking_id',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [os.path.join(BASE_DIR, "django_airavata", "templates")],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django_airavata.context_processors.user",
+                "django.contrib.messages.context_processors.messages",
+                "django_airavata.context_processors.airavata_app_registry",
+                "django_airavata.commons.dynamic_apps.context_processors.custom_app_registry",
+                "django_airavata.context_processors.get_notifications",
+                "django_airavata.context_processors.user_session_data",
+                "django_airavata.context_processors.google_analytics_tracking_id",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'django_airavata.wsgi.application'
+WSGI_APPLICATION = "django_airavata.wsgi.application"
 
 
 # Database
-# https://docs.djangoproject.com/en/1.10/ref/settings/#databases
-
+# The portal has no database. The dummy backend lets Django boot (and makes
+# runserver's migration check a no-op) while raising if any ORM query is ever
+# attempted — all persistence goes through the Airavata gRPC API / the cache.
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+    "default": {
+        "ENGINE": "django.db.backends.dummy",
     }
 }
-
-DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 # Sessions are stored in the cache, not the DB (no django_session rows). The
 # default cache is file-based so dev sessions survive the autoreloader and need
 # no DB or external store.
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-        'LOCATION': '/tmp/airavata-portal-cache',
+    "default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": "/tmp/airavata-portal-cache",
     }
 }
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
 
 
-# Password validation
-# https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators
-
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
+# No password validation: the portal never sets or validates passwords —
+# authentication (and registration) is hosted entirely by Keycloak.
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.10/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -175,25 +163,25 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.10/howto/static-files/
 
-STATIC_URL = '/static/'
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "django_airavata", "static")]
 
 # Media Files (PDF, Documents, Custom Images)
 MEDIA_ROOT = os.path.join(BASE_DIR, "django_airavata", "media")
-MEDIA_URL = '/media/'
+MEDIA_URL = "/media/"
 
 # Data storage
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o777
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_MAX_FILE_SIZE = 64 * 1024 * 1024  # 64 MB
 FILE_UPLOAD_HANDLERS = [
-    'django.core.files.uploadhandler.MemoryFileUploadHandler',
-    'django_airavata.uploadhandler.MaxFileSizeTemporaryFileUploadHandler',
+    "django.core.files.uploadhandler.MemoryFileUploadHandler",
+    "django_airavata.uploadhandler.MaxFileSizeTemporaryFileUploadHandler",
 ]
 
 # Django max file size
-DATA_UPLOAD_MAX_MEMORY_SIZE =  64 * 1024 * 1024  # 64 MB
-FILE_UPLOAD_MAX_MEMORY_SIZE =  64 * 1024 * 1024  # 64 MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 64 * 1024 * 1024  # 64 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 64 * 1024 * 1024  # 64 MB
 
 # Tus upload
 # Override and set to a valid tus endpoint, for example
@@ -213,7 +201,7 @@ GATEWAY_USER_DATA_ARCHIVE_MINIMUM_ARCHIVE_SIZE_GB = 1
 PGA_URL = None
 
 # Portal title shown in the header and emails. Override in settings_local.py.
-PORTAL_TITLE = 'Airavata Django Portal'
+PORTAL_TITLE = "Airavata Django Portal"
 
 # Portal app-shell "chrome" (base.html): favicon, header logo, and user-menu
 # links. Previously sourced from Wagtail snippet models; now sourced from
@@ -231,17 +219,72 @@ PORTAL_CHROME = {
     "user_menu_links": [],
 }
 
+# Portal email templates (formerly the django_airavata_auth EmailTemplate table).
+# Keyed by template_type int (see apps/auth/models.py); rendered with the Django
+# template engine in apps/auth/utils.send_email_to_user. Only the live
+# "user added to group" template (4) is retained — verify-email, password-reset,
+# and email-change are now handled entirely by Keycloak. Override in
+# settings_local.py to customize.
+PORTAL_EMAIL_TEMPLATES = {
+    # USER_ADDED_TO_GROUP_TEMPLATE
+    4: {
+        "subject": "You've been added to group"
+        "{{ group_names|length|pluralize }} "
+        "[{{group_names|join:'] and ['}}] in {{portal_title}}",
+        "body": """
+<p>
+Dear {{first_name}} {{last_name}},
+</p>
+
+<p>
+Your user account (username {{username}}) has been added to the
+group{{ group_names|length|pluralize }} {{group_names|join:' and '}}.
+{{portal_title}} uses groups to share applications and experiments.
+</p>
+
+<p>
+You may have access to additional applications now that you are a
+member of {{group_names|join:' and '}}. To check what applications you
+have access to, please check: <a href="{{dashboard_url}}">{{dashboard_url}}</a>.
+</p>
+
+<p>
+You may also have access to additional experiments. To check what
+experiments you have access to, please check: <a
+href="{{experiments_url}}">{{experiments_url}}</a>.
+</p>
+
+<p>
+Please let us know if you have any questions.  Thanks.
+</p>
+""".strip(),
+    },
+}
+
+# Per-application custom template overrides (formerly the ApplicationTemplate /
+# ApplicationTemplateContextProcessor tables). Maps an application_module_id to a
+# custom workspace template path and optional context-processor callables, read
+# in apps/workspace/views.get_custom_template. Empty by default (no overrides).
+# Override in settings_local.py, e.g.:
+#   PORTAL_APPLICATION_TEMPLATES = {
+#       "<app_module_id>": {
+#           "template_path": "custom/template.html",
+#           "context_processors": ["pkg.module.callable"],
+#       },
+#   }
+PORTAL_APPLICATION_TEMPLATES = {}
+
 # No Django auth backends: identity comes from the verified Keycloak token
 # (session_keycloak_user_middleware / keycloak_bearer_middleware), not from
 # authenticate()/login(). An empty list is valid.
 AUTHENTICATION_BACKENDS = []
 
 # Default email backend (for local development)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-LOGIN_URL = 'django_airavata_auth:login'
-LOGIN_REDIRECT_URL = 'django_airavata_workspace:dashboard'
-LOGOUT_REDIRECT_URL = '/'
+LOGIN_URL = "django_airavata_auth:login"
+LOGIN_REDIRECT_URL = "django_airavata_workspace:dashboard"
+LOGOUT_REDIRECT_URL = "/"
 
 # Login is hosted entirely by Keycloak (username/password, self-registration,
 # external IDPs). This is retained only for the desktop/CLI login templates and
@@ -266,136 +309,138 @@ ACCESS_TOKEN_REDIRECT_ALLOWED_URIS = []
 
 # Webpack loader
 WEBPACK_LOADER = {
-    'COMMON': {
-        'BUNDLE_DIR_NAME': 'common/dist/',
-        'STATS_FILE': os.path.join(
+    "COMMON": {
+        "BUNDLE_DIR_NAME": "common/dist/",
+        "STATS_FILE": os.path.join(
             BASE_DIR,
-            'django_airavata',
-            'static',
-            'common',
-            'dist',
-            'webpack-stats.json'),
-        'TIMEOUT': 60,
+            "django_airavata",
+            "static",
+            "common",
+            "dist",
+            "webpack-stats.json",
+        ),
+        "TIMEOUT": 60,
     },
-    'ADMIN': {
-        'BUNDLE_DIR_NAME': 'django_airavata_admin/dist/',
-        'STATS_FILE': os.path.join(
+    "ADMIN": {
+        "BUNDLE_DIR_NAME": "django_airavata_admin/dist/",
+        "STATS_FILE": os.path.join(
             BASE_DIR,
-            'django_airavata',
-            'apps',
-            'admin',
-            'static',
-            'django_airavata_admin',
-            'dist',
-            'webpack-stats.json'),
-        'TIMEOUT': 60,
+            "django_airavata",
+            "apps",
+            "admin",
+            "static",
+            "django_airavata_admin",
+            "dist",
+            "webpack-stats.json",
+        ),
+        "TIMEOUT": 60,
     },
-    'AUTH': {
-        'BUNDLE_DIR_NAME': 'django_airavata_auth/dist/',
-        'STATS_FILE': os.path.join(
+    "AUTH": {
+        "BUNDLE_DIR_NAME": "django_airavata_auth/dist/",
+        "STATS_FILE": os.path.join(
             BASE_DIR,
-            'django_airavata',
-            'apps',
-            'auth',
-            'static',
-            'django_airavata_auth',
-            'dist',
-            'webpack-stats.json'),
+            "django_airavata",
+            "apps",
+            "auth",
+            "static",
+            "django_airavata_auth",
+            "dist",
+            "webpack-stats.json",
+        ),
     },
-    'DATAPARSERS': {
-        'BUNDLE_DIR_NAME': 'django_airavata_dataparsers/dist/',
-        'STATS_FILE': os.path.join(
+    "DATAPARSERS": {
+        "BUNDLE_DIR_NAME": "django_airavata_dataparsers/dist/",
+        "STATS_FILE": os.path.join(
             BASE_DIR,
-            'django_airavata',
-            'apps',
-            'dataparsers',
-            'static',
-            'django_airavata_dataparsers',
-            'dist',
-            'webpack-stats.json'),
-        'TIMEOUT': 60,
+            "django_airavata",
+            "apps",
+            "dataparsers",
+            "static",
+            "django_airavata_dataparsers",
+            "dist",
+            "webpack-stats.json",
+        ),
+        "TIMEOUT": 60,
     },
-    'GROUPS': {
-        'BUNDLE_DIR_NAME': 'django_airavata_groups/dist/',
-        'STATS_FILE': os.path.join(
+    "GROUPS": {
+        "BUNDLE_DIR_NAME": "django_airavata_groups/dist/",
+        "STATS_FILE": os.path.join(
             BASE_DIR,
-            'django_airavata',
-            'apps',
-            'groups',
-            'static',
-            'django_airavata_groups',
-            'dist',
-            'webpack-stats.json'),
-        'TIMEOUT': 60,
+            "django_airavata",
+            "apps",
+            "groups",
+            "static",
+            "django_airavata_groups",
+            "dist",
+            "webpack-stats.json",
+        ),
+        "TIMEOUT": 60,
     },
-    'WORKSPACE': {
-        'BUNDLE_DIR_NAME': 'django_airavata_workspace/dist/',
-        'STATS_FILE': os.path.join(
+    "WORKSPACE": {
+        "BUNDLE_DIR_NAME": "django_airavata_workspace/dist/",
+        "STATS_FILE": os.path.join(
             BASE_DIR,
-            'django_airavata',
-            'apps',
-            'workspace',
-            'static',
-            'django_airavata_workspace',
-            'dist',
-            'webpack-stats.json'),
-        'TIMEOUT': 60,
+            "django_airavata",
+            "apps",
+            "workspace",
+            "static",
+            "django_airavata_workspace",
+            "dist",
+            "webpack-stats.json",
+        ),
+        "TIMEOUT": 60,
     },
 }
 
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'filters': {
-        'require_debug_false': {
-            '()': 'django.utils.log.RequireDebugFalse',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "require_debug_false": {
+            "()": "django.utils.log.RequireDebugFalse",
         },
-        'require_debug_true': {
-            '()': 'django.utils.log.RequireDebugTrue',
-        },
-    },
-    'formatters': {
-        'verbose': {
-            'format': '[%(asctime)s %(name)s:%(lineno)d %(levelname)s] %(message)s',
-        },
-        'verbose-safe': {
-            '()': 'django_airavata.log_utils.SafeFormatter',
-            'format': '[%(asctime)s %(name)s:%(lineno)d %(levelname)s] %(message)s',
+        "require_debug_true": {
+            "()": "django.utils.log.RequireDebugTrue",
         },
     },
-    'handlers': {
+    "formatters": {
+        "verbose": {
+            "format": "[%(asctime)s %(name)s:%(lineno)d %(levelname)s] %(message)s",
+        },
+        "verbose-safe": {
+            "()": "django_airavata.log_utils.SafeFormatter",
+            "format": "[%(asctime)s %(name)s:%(lineno)d %(levelname)s] %(message)s",
+        },
+    },
+    "handlers": {
         # Log everything to the console when DEBUG=True
-        'console_debug': {
-            'filters': ['require_debug_true'],
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose'
+        "console_debug": {
+            "filters": ["require_debug_true"],
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
         },
         # Only log INFO and higher levels to console when DEBUG=False
-        'console': {
-            'filters': ['require_debug_false'],
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose-safe',
-            'level': 'INFO'
+        "console": {
+            "filters": ["require_debug_false"],
+            "class": "logging.StreamHandler",
+            "formatter": "verbose-safe",
+            "level": "INFO",
         },
-        'mail_admins': {
-            'filters': ['require_debug_false'],
-            'level': 'ERROR',
-            'class': 'django.utils.log.AdminEmailHandler',
-            'include_html': True,
-        }
+        "mail_admins": {
+            "filters": ["require_debug_false"],
+            "level": "ERROR",
+            "class": "django.utils.log.AdminEmailHandler",
+            "include_html": True,
+        },
     },
-    'loggers': {
-        'django_airavata': {
-            'handlers': ['console', 'console_debug', 'mail_admins'],
-            'level': 'DEBUG'
+    "loggers": {
+        "django_airavata": {
+            "handlers": ["console", "console_debug", "mail_admins"],
+            "level": "DEBUG",
         },
-        'root': {
-            'handlers': ['console', 'console_debug'],
-            'level': 'WARNING'
-        }
+        "root": {"handlers": ["console", "console_debug"], "level": "WARNING"},
     },
 }
-
 
 
 # New gRPC backend (Track D). The portal is migrating from the legacy Thrift API
@@ -403,23 +448,22 @@ LOGGING = {
 # defaults target the tilt-managed server on :9090 and may be overridden via env
 # vars or settings_local.py. The gRPC client coexists with the Thrift client while
 # apps/api views are repointed resource-family by resource-family.
-GRPC_API_HOST = os.environ.get('GRPC_API_HOST', 'localhost')
-GRPC_API_PORT = int(os.environ.get('GRPC_API_PORT', 9090))
-GRPC_API_SECURE = os.environ.get('GRPC_API_SECURE', 'false').lower() == 'true'
+GRPC_API_HOST = os.environ.get("GRPC_API_HOST", "localhost")
+GRPC_API_PORT = int(os.environ.get("GRPC_API_PORT", 9090))
+GRPC_API_SECURE = os.environ.get("GRPC_API_SECURE", "false").lower() == "true"
 
 # Allow all settings to be overridden by settings_local.py file
-try:
+with contextlib.suppress(ImportError):
     from django_airavata.settings_local import *  # noqa
-except ImportError:
-    pass
 
 # Keycloak account console URL (self-service profile/password/email management
 # the portal no longer hosts). Defaults to the realm account console derived
 # from KEYCLOAK_AUTHORIZE_URL; override in settings_local.py if needed.
-if 'KEYCLOAK_ACCOUNT_CONSOLE_URL' not in dir() and 'KEYCLOAK_AUTHORIZE_URL' in dir():
+if "KEYCLOAK_ACCOUNT_CONSOLE_URL" not in dir() and "KEYCLOAK_AUTHORIZE_URL" in dir():
     KEYCLOAK_ACCOUNT_CONSOLE_URL = (
-        KEYCLOAK_AUTHORIZE_URL.split('/protocol/openid-connect/')[0] +
-        '/account/')
+        KEYCLOAK_AUTHORIZE_URL.split("/protocol/openid-connect/")[0]  # noqa: F405  # from settings_local star import, guarded by `in dir()` above
+        + "/account/"
+    )
 
 # NOTE: custom code must be loaded last so that the above settings take effect
 # for any views, etc. defined or imported by custom code

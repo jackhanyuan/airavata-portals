@@ -1,4 +1,3 @@
 #!/bin/bash
-
-python manage.py migrate
+# The portal has no database, so there is nothing to migrate — just serve.
 exec python manage.py runserver 0.0.0.0:8000

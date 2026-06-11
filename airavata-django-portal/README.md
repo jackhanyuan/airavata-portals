@@ -27,50 +27,31 @@ any yarn commands. See
 [the Yarn package manager](https://classic.yarnpkg.com/lang/en/) for information
 on how to install Yarn 1 (Classic).
 
-1.  Checkout this project and create a virtual environment.
+This project uses [uv](https://docs.astral.sh/uv/) for Python dependency
+management. The portal has **no database** — there is nothing to migrate, and
+all persistence goes through the Airavata gRPC API and the cache.
+
+1.  Check out the project and install dependencies.
 
     ```
     git clone https://github.com/apache/airavata-django-portal.git
     cd airavata-django-portal
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install --upgrade pip setuptools wheel
-    pip install -r requirements.txt
+    uv sync
     ```
 
-    - **Windows note**: Use ```venv\Scripts\activate``` instead of ```source venv/bin/activate```
-      <!-- https://docs.python.org/3/library/venv.html -->
+    `uv sync` creates `.venv/` (Python 3.12) and installs everything, including
+    the editable `airavata-python-sdk` from a sibling `apache/airavata` checkout
+    (see `[tool.uv.sources]` in `pyproject.toml`). Prefix commands with
+    `uv run` (e.g. `uv run python manage.py ...`) or activate `.venv` directly.
 
-    - **macOS note**: to install the MySQL dependencies you need to have the
-      MySQL development headers and libraries installed. Also, on macOS you need
-      to have openssl installed. See the
-      [mysqlclient-python installation notes](https://github.com/PyMySQL/mysqlclient-python#install)
-      for more details.
-
-2.  Create a local settings file.
-
-    - Option 1 (**recommended**). The best way to get a local settings file is
-      to download one from an existing Airavata Django Portal instance. If you
-      have Admin access, you can log in, go to _Settings_ and then _Developer
-      Console_ (/admin/developers) and download a `settings_local.py` file for
-      local development. Save it to the `django_airavata/` directory.
-
-    - Option 2. Otherwise, if you know the hostname and ports of an Airavata
-      deployment, you can copy `django_airavata/settings_local.py.sample` to
-      `django_airavata/settings_local.py` and edit the contents to match your
-      Keycloak and Airavata server deployments.
-
-      ```
-      cp django_airavata/settings_local.py.sample django_airavata/settings_local.py
-      ```
-
-3.  Run Django migrations
+2.  Create a local settings file by copying the sample and editing it to match
+    your Keycloak and Airavata server deployment.
 
     ```
-    python manage.py migrate
+    cp django_airavata/settings_local.py.sample django_airavata/settings_local.py
     ```
 
-4.  Build the JavaScript sources. There are a few JavaScript packages in the
+3.  Build the JavaScript sources. There are a few JavaScript packages in the
     source tree, colocated with the Django apps in which they are used. The
     `build_js.sh` script will build them all.
 
@@ -78,21 +59,15 @@ on how to install Yarn 1 (Classic).
     ./build_js.sh
     ```
 
-    - **Window note**: on Windows, run `.\build_js.bat` instead
+    - **Windows note**: on Windows, run `.\build_js.bat` instead
 
-5.  Load the default Wagtail CMS pages.
-
-    ```
-    python manage.py load_cms_data new_default_theme
-    ```
-
-6.  Run the server
+4.  Run the server.
 
     ```
-    python manage.py runserver
+    uv run python manage.py runserver
     ```
 
-7.  Point your browser to http://localhost:8000.
+5.  Point your browser to http://localhost:8000.
 
 ## Docker instructions
 
@@ -114,14 +89,7 @@ following:
      -p 8000:8000 airavata-django-portal
    ```
 
-3. Load an initial set of Wagtail pages (theme). You only need to do this when
-   starting the container for the first time.
-
-   ```
-   docker exec CONTAINER_ID python manage.py load_cms_data new_default_theme
-   ```
-
-4. Point your browser to http://localhost:8000.
+3. Point your browser to http://localhost:8000.
 
 ### Multi-architecture images
 
@@ -178,12 +146,16 @@ Apache Airavata website.
 
 ### Setting up development environment
 
-Run `pip install -r requirements-dev.txt` to install development and testing
-libraries.
+`uv sync` installs the development and testing tools (ruff, ty) alongside the
+runtime dependencies. Lint, format, and type-check the Python code with:
 
-Use a code editor that integrates with editorconfig and flake8. I also recommend
-autopep8 for automatically formatting code to follow the PEP8 guidelines.
-Prettier is used for formatting JavaScript and Vue.js code.
+```
+uv run ruff check .       # lint
+uv run ruff format .      # auto-format
+uv run ty check           # type check
+```
+
+Prettier and ESLint are used for JavaScript and Vue.js code (see `lint_js.sh`).
 
 See the docs for more information on
 [developing the backend](./docs/dev/developing_backend.md) and
@@ -191,7 +163,7 @@ See the docs for more information on
 
 ### Running Django Tests
 
-Run `./runtests.py` to run the Django unit tests.
+Run `uv run ./runtests.py` to run the Django unit tests.
 
 ## License
 

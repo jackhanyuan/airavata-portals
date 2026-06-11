@@ -17,11 +17,6 @@ re-prove — is exercised here directly against ``to_jsonable`` / ``proto_to_dic
   proto carried wholesale inside it flows through the SAME renderer.
 """
 
-from dataclasses import dataclass
-
-from django.test import SimpleTestCase
-from pydantic import BaseModel
-
 from airavata_sdk.generated.org.apache.airavata.model.group import (
     group_manager_pb2,
 )
@@ -29,15 +24,22 @@ from airavata_sdk.generated.org.apache.airavata.model.workspace import (
     workspace_pb2,
 )
 from airavata_sdk.helpers._envelope import WithAccess, WithGroupAccess
+from django.test import SimpleTestCase
+from pydantic import BaseModel
+
 from django_airavata.apps.api.proto_render import proto_to_dict, to_jsonable
 
 
 def _project(**overrides):
-    fields = dict(
-        project_id="p1", owner="alice", gateway_id="default", name="P",
-        description="d", creation_time=1705320000000)
-    fields.update(overrides)
-    return workspace_pb2.Project(**fields)
+    return workspace_pb2.Project(
+        project_id=overrides.pop("project_id", "p1"),
+        owner=overrides.pop("owner", "alice"),
+        gateway_id=overrides.pop("gateway_id", "default"),
+        name=overrides.pop("name", "P"),
+        description=overrides.pop("description", "d"),
+        creation_time=overrides.pop("creation_time", 1705320000000),
+        **overrides,
+    )
 
 
 class SnakeCaseKeysTest(SimpleTestCase):
@@ -57,8 +59,8 @@ class EnumRendersAsNameTest(SimpleTestCase):
     def test_enum_value_is_member_name_string(self):
         # NotificationPriority.HIGH (int 3) must render as "HIGH", not 3.
         notification = workspace_pb2.Notification(
-            notification_id="n1",
-            priority=workspace_pb2.NotificationPriority.HIGH)
+            notification_id="n1", priority=workspace_pb2.NotificationPriority.HIGH
+        )
         rendered = proto_to_dict(notification)
         self.assertEqual(rendered["priority"], "HIGH")
 
@@ -91,7 +93,8 @@ class StableShapeTest(SimpleTestCase):
 class WithAccessMergeTest(SimpleTestCase):
     def test_scalars_merged_onto_flattened_proto(self):
         rendered = to_jsonable(
-            WithAccess(_project(), is_owner=True, user_has_write_access=False))
+            WithAccess(_project(), is_owner=True, user_has_write_access=False)
+        )
         self.assertEqual(rendered["project_id"], "p1")
         self.assertIs(rendered["is_owner"], True)
         self.assertIs(rendered["user_has_write_access"], False)
@@ -100,22 +103,41 @@ class WithAccessMergeTest(SimpleTestCase):
 class WithGroupAccessMergeTest(SimpleTestCase):
     def test_six_group_flags_merged(self):
         group = group_manager_pb2.GroupModel(
-            id="g1", name="G", owner_id="o", members=["a"])
-        rendered = to_jsonable(WithGroupAccess(
-            group, is_admin=True, is_owner=False, is_member=True,
-            is_gateway_admins_group=False,
-            is_read_only_gateway_admins_group=False,
-            is_default_gateway_users_group=True))
+            id="g1", name="G", owner_id="o", members=["a"]
+        )
+        rendered = to_jsonable(
+            WithGroupAccess(
+                group,
+                is_admin=True,
+                is_owner=False,
+                is_member=True,
+                is_gateway_admins_group=False,
+                is_read_only_gateway_admins_group=False,
+                is_default_gateway_users_group=True,
+            )
+        )
         self.assertEqual(rendered["id"], "g1")
         self.assertEqual(
-            {k: rendered[k] for k in (
-                "is_admin", "is_owner", "is_member",
-                "is_gateway_admins_group", "is_read_only_gateway_admins_group",
-                "is_default_gateway_users_group")},
-            {"is_admin": True, "is_owner": False, "is_member": True,
-             "is_gateway_admins_group": False,
-             "is_read_only_gateway_admins_group": False,
-             "is_default_gateway_users_group": True})
+            {
+                k: rendered[k]
+                for k in (
+                    "is_admin",
+                    "is_owner",
+                    "is_member",
+                    "is_gateway_admins_group",
+                    "is_read_only_gateway_admins_group",
+                    "is_default_gateway_users_group",
+                )
+            },
+            {
+                "is_admin": True,
+                "is_owner": False,
+                "is_member": True,
+                "is_gateway_admins_group": False,
+                "is_read_only_gateway_admins_group": False,
+                "is_default_gateway_users_group": True,
+            },
+        )
 
 
 class RecursionTest(SimpleTestCase):
@@ -136,12 +158,17 @@ class RecursionTest(SimpleTestCase):
             proto: object
             wrapped: object
 
-        rendered = to_jsonable(_Composed(
-            plain="x",
-            proto=_project(project_id="bare"),
-            wrapped=WithAccess(
-                _project(project_id="env"), is_owner=True,
-                user_has_write_access=True)))
+        rendered = to_jsonable(
+            _Composed(
+                plain="x",
+                proto=_project(project_id="bare"),
+                wrapped=WithAccess(
+                    _project(project_id="env"),
+                    is_owner=True,
+                    user_has_write_access=True,
+                ),
+            )
+        )
         self.assertEqual(rendered["plain"], "x")
         self.assertEqual(rendered["proto"]["project_id"], "bare")
         self.assertEqual(rendered["wrapped"]["project_id"], "env")

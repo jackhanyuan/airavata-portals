@@ -17,13 +17,13 @@ decimal STRINGS (``product_size`` is int32 -> a JSON number), no camelCase keys,
 and the two access scalars merged on top.
 """
 
-from django.test import SimpleTestCase
-
 from airavata_sdk.generated.org.apache.airavata.model.data.replica import (
     replica_catalog_pb2 as rc,
 )
 from airavata_sdk.helpers._envelope import WithAccess
 from airavata_sdk.helpers.research_resources import get_data_product
+from django.test import SimpleTestCase
+
 from django_airavata.apps.api.proto_render import to_jsonable
 
 _PRODUCT_URI = "airavata-dp://gateway/alice/file.txt"
@@ -32,6 +32,7 @@ _PRODUCT_URI = "airavata-dp://gateway/alice/file.txt"
 # ---------------------------------------------------------------------------
 # Stub client — returns a fixed proto from the raw research facade
 # ---------------------------------------------------------------------------
+
 
 class _FakeResearch:
     def __init__(self, product):
@@ -121,10 +122,9 @@ _EXPECTED_SNAPSHOT = {
 
 
 class DataProductContractSnapshotTest(SimpleTestCase):
-
     def _render(self, has_write=True, username="alice"):
         client = _FakeClient(_make_product(), username=username)
-        result = get_data_product(client, _PRODUCT_URI, has_write=has_write)
+        result = get_data_product(client, _PRODUCT_URI, has_write=has_write)  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
         return to_jsonable(result)
 
     # ------------------------------------------------------------------
@@ -134,7 +134,7 @@ class DataProductContractSnapshotTest(SimpleTestCase):
     def test_sdk_returns_withaccess_carrying_the_proto(self):
         product = _make_product()
         client = _FakeClient(product)
-        result = get_data_product(client, _PRODUCT_URI, has_write=True)
+        result = get_data_product(client, _PRODUCT_URI, has_write=True)  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
         self.assertIsInstance(result, WithAccess)
         # the proto flows through wholesale — no field copied out.
         self.assertIs(result.message, product)
@@ -150,8 +150,7 @@ class DataProductContractSnapshotTest(SimpleTestCase):
         self.assertEqual(self._render(), _EXPECTED_SNAPSHOT)
 
     def test_exact_top_level_key_set(self):
-        self.assertEqual(
-            set(self._render().keys()), set(_EXPECTED_SNAPSHOT.keys()))
+        self.assertEqual(set(self._render().keys()), set(_EXPECTED_SNAPSHOT.keys()))
 
     def test_exact_replica_key_set(self):
         replica = self._render()["replica_locations"][0]
@@ -166,8 +165,8 @@ class DataProductContractSnapshotTest(SimpleTestCase):
             if isinstance(obj, dict):
                 for key, value in obj.items():
                     self.assertEqual(
-                        key, key.lower(),
-                        f"key {key!r} is not lowercase/snake_case")
+                        key, key.lower(), f"key {key!r} is not lowercase/snake_case"
+                    )
                     _check(value)
             elif isinstance(obj, list):
                 for item in obj:
@@ -178,19 +177,38 @@ class DataProductContractSnapshotTest(SimpleTestCase):
     def test_no_camelcase_keys(self):
         rendered = self._render()
         for legacy in (
-            "productUri", "productURI", "gatewayId", "gatewayID",
-            "parentProductUri", "productName", "productDescription",
-            "ownerName", "dataProductType", "productSize", "creationTime",
-            "lastModifiedTime", "productMetadata", "replicaLocations",
-            "userHasWriteAccess", "isOwner", "url",
+            "productUri",
+            "productURI",
+            "gatewayId",
+            "gatewayID",
+            "parentProductUri",
+            "productName",
+            "productDescription",
+            "ownerName",
+            "dataProductType",
+            "productSize",
+            "creationTime",
+            "lastModifiedTime",
+            "productMetadata",
+            "replicaLocations",
+            "userHasWriteAccess",
+            "isOwner",
+            "url",
         ):
             self.assertNotIn(legacy, rendered)
         replica = rendered["replica_locations"][0]
         for legacy in (
-            "replicaId", "productUri", "replicaName", "replicaDescription",
-            "creationTime", "lastModifiedTime", "validUntilTime",
-            "replicaLocationCategory", "replicaPersistentType",
-            "storageResourceId", "filePath",
+            "replicaId",
+            "productUri",
+            "replicaName",
+            "replicaDescription",
+            "creationTime",
+            "lastModifiedTime",
+            "validUntilTime",
+            "replicaLocationCategory",
+            "replicaPersistentType",
+            "storageResourceId",
+            "filePath",
         ):
             self.assertNotIn(legacy, replica)
 
@@ -203,17 +221,14 @@ class DataProductContractSnapshotTest(SimpleTestCase):
 
     def test_replica_enums_render_as_member_names(self):
         replica = self._render()["replica_locations"][0]
-        self.assertEqual(
-            replica["replica_location_category"], "GATEWAY_DATA_STORE")
+        self.assertEqual(replica["replica_location_category"], "GATEWAY_DATA_STORE")
         self.assertEqual(replica["replica_persistent_type"], "TRANSIENT")
 
     def test_unknown_type_renders_as_sentinel_name(self):
         product = rc.DataProductModel(product_uri=_PRODUCT_URI)
         client = _FakeClient(product)
-        rendered = to_jsonable(
-            get_data_product(client, _PRODUCT_URI, has_write=False))
-        self.assertEqual(
-            rendered["data_product_type"], "DATA_PRODUCT_TYPE_UNKNOWN")
+        rendered = to_jsonable(get_data_product(client, _PRODUCT_URI, has_write=False))  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
+        self.assertEqual(rendered["data_product_type"], "DATA_PRODUCT_TYPE_UNKNOWN")
 
     # ------------------------------------------------------------------
     # int64 / metadata field handling
@@ -231,7 +246,8 @@ class DataProductContractSnapshotTest(SimpleTestCase):
 
     def test_product_metadata_is_native_object(self):
         self.assertEqual(
-            self._render()["product_metadata"], {"mime-type": "text/plain"})
+            self._render()["product_metadata"], {"mime-type": "text/plain"}
+        )
 
     # ------------------------------------------------------------------
     # Access flags
@@ -253,7 +269,8 @@ class DataProductContractSnapshotTest(SimpleTestCase):
         product = rc.DataProductModel(product_uri="airavata-dp://empty")
         client = _FakeClient(product)
         rendered = to_jsonable(
-            get_data_product(client, "airavata-dp://empty", has_write=False))
+            get_data_product(client, "airavata-dp://empty", has_write=False)  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
+        )
         self.assertEqual(rendered["replica_locations"], [])
         self.assertEqual(rendered["gateway_id"], "")
         self.assertEqual(rendered["product_size"], 0)

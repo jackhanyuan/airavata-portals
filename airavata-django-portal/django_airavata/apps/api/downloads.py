@@ -6,6 +6,7 @@ Container) off the retired ``airavata_django_portal_sdk`` and onto the gRPC
 storage facade (``request.airavata.storage``). Individual-file downloads go
 through the ``download``/``download-file`` views instead.
 """
+
 import io
 import logging
 import os
@@ -24,9 +25,9 @@ log = logging.getLogger(__name__)
 @api_view()
 def download_dir(request):
     """Stream a user-storage directory (``?path=``) as a zip archive."""
-    path = request.GET.get('path', "")
+    path = request.GET.get("path", "")
     base = get_valid_filename(os.path.basename(path))
-    filename = (base + ".zip") if base else 'home.zip'
+    filename = (base + ".zip") if base else "home.zip"
     resolved = _user_storage_path(path, request=request)
     entries = _zip_entries(request.airavata.storage, resolved)
     return _zip_response(request.airavata.storage, filename, entries)
@@ -35,11 +36,11 @@ def download_dir(request):
 @api_view()
 def download_experiment_dir(request, experiment_id=None):
     """Stream an experiment's output directory (``?path=``) as a zip archive."""
-    path = request.GET.get('path', "")
+    path = request.GET.get("path", "")
     experiment = request.airavata.research.get_experiment(experiment_id)
     exp_name = get_valid_filename(experiment.experiment_name)
     base = get_valid_filename(os.path.basename(path))
-    filename = f'{exp_name}_{base}.zip' if base else f'{exp_name}.zip'
+    filename = f"{exp_name}_{base}.zip" if base else f"{exp_name}.zip"
     resolved = _user_storage_path(path, experiment_id=experiment_id, request=request)
     entries = _zip_entries(request.airavata.storage, resolved)
     return _zip_response(request.airavata.storage, filename, entries)
@@ -70,13 +71,12 @@ def _zip_response(storage, filename, entries):
     # for large directories in production this should be replaced with a true
     # streaming zip (the previous zipstream-new behavior).
     buf = io.BytesIO()
-    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
-        for archive_name, abs_path, size in entries:
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
+        for archive_name, abs_path, _size in entries:
             zf.writestr(archive_name, storage.download_file(abs_path).content)
     buf.seek(0)
-    response = StreamingHttpResponse(
-        _iter_buffer(buf), content_type='application/zip')
-    response['Content-Disposition'] = f'attachment; filename={filename}'
+    response = StreamingHttpResponse(_iter_buffer(buf), content_type="application/zip")
+    response["Content-Disposition"] = f"attachment; filename={filename}"
     return response
 
 

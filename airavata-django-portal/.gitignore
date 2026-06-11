@@ -17,3 +17,7 @@ package-lock.json
 site/
 .tox/
 yarn-error.log
+.venv/
+.pytest_cache/
+.ruff_cache/
+__pycache__/

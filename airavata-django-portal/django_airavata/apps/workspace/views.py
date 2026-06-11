@@ -1,87 +1,100 @@
-
 import json
 import logging
 from urllib.parse import urlparse
 
-from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from django.shortcuts import render
 from django.utils.module_loading import import_string
-from django_airavata.apps.api.proto_render import ProtoJSONRenderer
 
-from django_airavata.apps.api import models, view_utils
+from django_airavata.apps.api import view_utils
+from django_airavata.apps.api.proto_render import ProtoJSONRenderer
 from django_airavata.apps.api.views import (
     ApplicationModuleViewSet,
     ExperimentSearchViewSet,
     FullExperimentViewSet,
-    ProjectViewSet
+    ProjectViewSet,
 )
+from django_airavata.apps.auth.decorators import login_required
 
 logger = logging.getLogger(__name__)
 
 
 @login_required
 def experiments_list(request):
-    request.active_nav_item = 'experiments'
+    request.active_nav_item = "experiments"
 
-    response = ExperimentSearchViewSet.as_view({'get': 'list'})(request)
+    response = ExperimentSearchViewSet.as_view({"get": "list"})(request)
     if response.status_code != 200:
-        raise Exception("Failed to load experiments list: {}".format(
-            response.data['detail']))
-    experiments_json = ProtoJSONRenderer().render(response.data).decode('utf-8')
-    return render(request, 'django_airavata_workspace/experiments_list.html', {
-        'bundle_name': 'experiment-list',
-        'experiments_data': experiments_json
-    })
+        raise Exception(
+            "Failed to load experiments list: {}".format(response.data["detail"])
+        )
+    experiments_json = ProtoJSONRenderer().render(response.data).decode("utf-8")
+    return render(
+        request,
+        "django_airavata_workspace/experiments_list.html",
+        {"bundle_name": "experiment-list", "experiments_data": experiments_json},
+    )
 
 
 @login_required
 def dashboard(request):
-    request.active_nav_item = 'dashboard'
-    return render(request, 'django_airavata_workspace/dashboard.html', {
-        'bundle_name': 'dashboard',
-        'sidebar': True,
-    })
+    request.active_nav_item = "dashboard"
+    return render(
+        request,
+        "django_airavata_workspace/dashboard.html",
+        {
+            "bundle_name": "dashboard",
+            "sidebar": True,
+        },
+    )
 
 
 @login_required
 def projects_list(request):
-    request.active_nav_item = 'projects'
+    request.active_nav_item = "projects"
 
-    response = ProjectViewSet.as_view({'get': 'list'})(request)
+    response = ProjectViewSet.as_view({"get": "list"})(request)
     if response.status_code != 200:
-        raise Exception("Failed to load projects list: {}".format(
-            response.data['detail']))
-    projects_json = ProtoJSONRenderer().render(response.data).decode('utf-8')
+        raise Exception(
+            "Failed to load projects list: {}".format(response.data["detail"])
+        )
+    projects_json = ProtoJSONRenderer().render(response.data).decode("utf-8")
 
-    return render(request, 'django_airavata_workspace/projects_list.html', {
-        'bundle_name': 'project-list',
-        'projects_data': projects_json
-    })
+    return render(
+        request,
+        "django_airavata_workspace/projects_list.html",
+        {"bundle_name": "project-list", "projects_data": projects_json},
+    )
 
 
 @login_required
 def edit_project(request, project_id):
-    request.active_nav_item = 'projects'
+    request.active_nav_item = "projects"
 
-    return render(request, 'django_airavata_workspace/edit_project.html', {
-        'bundle_name': 'edit-project',
-        'project_id': project_id
-    })
+    return render(
+        request,
+        "django_airavata_workspace/edit_project.html",
+        {"bundle_name": "edit-project", "project_id": project_id},
+    )
 
 
 @login_required
 def create_experiment(request, app_module_id):
-    request.active_nav_item = 'dashboard'
+    request.active_nav_item = "dashboard"
 
     # User input files can be passed as query parameters
     # <input name>=<path/to/user_file>
     # and also as data product URIs
     # <input name>=<data product URI>
-    app_interface = ApplicationModuleViewSet.as_view(
-        {'get': 'application_interface'})(request, app_module_id=app_module_id)
+    app_interface = ApplicationModuleViewSet.as_view({"get": "application_interface"})(
+        request, app_module_id=app_module_id
+    )
     if app_interface.status_code != 200:
-        raise Exception("Failed to load application module data: {}".format(
-            app_interface.data['detail']))
+        raise Exception(
+            "Failed to load application module data: {}".format(
+                app_interface.data["detail"]
+            )
+        )
     user_input_values = {}
     # The serialized application-input `type` is the DataType member NAME; the
     # historical Thrift DataType integers are kept here so the comparisons below
@@ -89,40 +102,44 @@ def create_experiment(request, app_module_id):
     # case with the Thrift IntEnum members).
     DataType_URI = 3
     DataType_STRING = 0
-    for app_input in app_interface.data['applicationInputs']:
-        if (app_input['type'] ==
-                DataType_URI and app_input['name'] in request.GET):
-            user_file_value = request.GET[app_input['name']]
+    for app_input in app_interface.data["applicationInputs"]:
+        if app_input["type"] == DataType_URI and app_input["name"] in request.GET:
+            user_file_value = request.GET[app_input["name"]]
             try:
                 user_file_url = urlparse(user_file_value)
-                if user_file_url.scheme == 'airavata-dp':
+                if user_file_url.scheme == "airavata-dp":
                     dp_uri = user_file_value
                     try:
-                        data_product = (
-                            request.airavata.research.get_data_product(dp_uri))
-                        file_path = view_utils.data_product_file_path(
-                            data_product)
+                        data_product = request.airavata.research.get_data_product(
+                            dp_uri
+                        )
+                        file_path = view_utils.data_product_file_path(data_product)
                         if file_path and request.airavata.storage.file_exists(
-                                file_path):
-                            user_input_values[app_input['name']] = dp_uri
+                            file_path
+                        ):
+                            user_input_values[app_input["name"]] = dp_uri
                     except Exception:
                         logger.exception(
-                            f"Failed checking data product uri: {dp_uri}", extra={'request': request})
+                            f"Failed checking data product uri: {dp_uri}",
+                            extra={"request": request},
+                        )
             except ValueError:
-                logger.exception(f"Invalid user file value: {user_file_value}", extra={'request': request})
-        elif (app_input['type'] == DataType_STRING and
-              app_input['name'] in request.GET):
-            name = app_input['name']
+                logger.exception(
+                    f"Invalid user file value: {user_file_value}",
+                    extra={"request": request},
+                )
+        elif app_input["type"] == DataType_STRING and app_input["name"] in request.GET:
+            name = app_input["name"]
             user_input_values[name] = request.GET[name]
     context = {
-        'bundle_name': 'create-experiment',
-        'app_module_id': app_module_id,
-        'user_input_values': json.dumps(user_input_values)
+        "bundle_name": "create-experiment",
+        "app_module_id": app_module_id,
+        "user_input_values": json.dumps(user_input_values),
     }
-    if 'experiment-data-dir' in request.GET:
-        context['experiment_data_dir'] = request.GET['experiment-data-dir']
+    if "experiment-data-dir" in request.GET:
+        context["experiment_data_dir"] = request.GET["experiment-data-dir"]
 
-    template_path = 'django_airavata_workspace/create_experiment.html'
+    template_path = "django_airavata_workspace/create_experiment.html"
     # Apply a custom application template if it exists
     custom_template_path, custom_context = get_custom_template(request, app_module_id)
     if custom_template_path is not None:
@@ -135,18 +152,19 @@ def create_experiment(request, app_module_id):
 
 @login_required
 def edit_experiment(request, experiment_id):
-    request.active_nav_item = 'experiments'
+    request.active_nav_item = "experiments"
 
     experiment = request.airavata.research.get_experiment(experiment_id)
     applicationInterface = request.airavata.research.get_application_interface(
-        experiment.execution_id)
+        experiment.execution_id
+    )
     app_module_id = applicationInterface.application_modules[0]
     context = {
-        'bundle_name': 'edit-experiment',
-        'experiment_id': experiment_id,
-        'app_module_id': app_module_id,
+        "bundle_name": "edit-experiment",
+        "experiment_id": experiment_id,
+        "app_module_id": app_module_id,
     }
-    template_path = 'django_airavata_workspace/edit_experiment.html'
+    template_path = "django_airavata_workspace/edit_experiment.html"
     # Apply a custom application template if it exists
     custom_template_path, custom_context = get_custom_template(request, app_module_id)
     if custom_template_path is not None:
@@ -160,38 +178,43 @@ def edit_experiment(request, experiment_id):
 def get_custom_template(request, app_module_id):
     template_path = None
     context = {}
-    query = models.ApplicationTemplate.objects.filter(application_module_id=app_module_id)
-    if query.exists():
-        application_template = query.get()
-        template_path = application_template.template_path
-        for context_processor in application_template.context_processors.all():
-            context_processor = import_string(context_processor.callable_path)
+    config = settings.PORTAL_APPLICATION_TEMPLATES.get(app_module_id)
+    if config:
+        template_path = config.get("template_path")
+        for callable_path in config.get("context_processors", []):
+            context_processor = import_string(callable_path)
             context.update(context_processor(request))
     return template_path, context
 
 
 @login_required
 def view_experiment(request, experiment_id):
-    request.active_nav_item = 'experiments'
+    request.active_nav_item = "experiments"
 
-    launching = json.loads(request.GET.get('launching', 'false'))
-    response = FullExperimentViewSet.as_view(
-        {'get': 'retrieve'})(request, experiment_id=experiment_id)
+    launching = json.loads(request.GET.get("launching", "false"))
+    response = FullExperimentViewSet.as_view({"get": "retrieve"})(
+        request, experiment_id=experiment_id
+    )
     if response.status_code != 200:
-        raise Exception("Failed to load experiment data: {}".format(
-            response.data['detail']))
-    full_experiment_json = ProtoJSONRenderer().render(response.data).decode('utf-8')
+        raise Exception(
+            "Failed to load experiment data: {}".format(response.data["detail"])
+        )
+    full_experiment_json = ProtoJSONRenderer().render(response.data).decode("utf-8")
 
-    return render(request, 'django_airavata_workspace/view_experiment.html', {
-        'bundle_name': 'view-experiment',
-        'full_experiment_data': full_experiment_json,
-        'launching': json.dumps(launching),
-    })
+    return render(
+        request,
+        "django_airavata_workspace/view_experiment.html",
+        {
+            "bundle_name": "view-experiment",
+            "full_experiment_data": full_experiment_json,
+            "launching": json.dumps(launching),
+        },
+    )
 
 
 @login_required
 def user_storage(request):
-    request.active_nav_item = 'storage'
-    return render(request, 'django_airavata_workspace/base.html', {
-        'bundle_name': 'user-storage'
-    })
+    request.active_nav_item = "storage"
+    return render(
+        request, "django_airavata_workspace/base.html", {"bundle_name": "user-storage"}
+    )

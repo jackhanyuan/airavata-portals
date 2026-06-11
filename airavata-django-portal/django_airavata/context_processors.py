@@ -31,6 +31,17 @@ def mark_notification_read(username, notification_id):
     cache.set(_notif_read_key(username), state)
 
 
+def user(request):
+    """Provide ``{{ user }}`` to templates without ``django.contrib.auth``.
+
+    Replaces ``django.contrib.auth.context_processors.auth`` (the auth app is no
+    longer installed). ``request.user`` is the KeycloakUser / AnonymousUser set
+    by the auth middleware. No ``perms`` is exposed — the portal authorizes via
+    gateway-admin flags (``request.is_gateway_admin``), not Django permissions.
+    """
+    return {"user": getattr(request, "user", None)}
+
+
 # proto NotificationPriority value -> the Thrift NotificationPriority integer the
 # frontend dashboard expects (proto LOW=1/NORMAL=2/HIGH=3 vs Thrift 0/1/2). Built
 # lazily so this module stays importable without the gRPC SDK on the path.
@@ -43,10 +54,11 @@ def _notification_priority(value):
         from airavata_sdk.generated.org.apache.airavata.model.workspace import (
             workspace_pb2,
         )
+
         proto = workspace_pb2.NotificationPriority
         # Historical Thrift NotificationPriority integers (LOW/NORMAL/HIGH =
         # 0/1/2) the dashboard expects; proto assigns 1/2/3 (0 = UNKNOWN).
-        thrift_ints = {'LOW': 0, 'NORMAL': 1, 'HIGH': 2}
+        thrift_ints = {"LOW": 0, "NORMAL": 1, "HIGH": 2}
         _notification_priority_proto_to_thrift = {
             v.number: thrift_ints[v.name]
             for v in proto.DESCRIPTOR.values
@@ -56,19 +68,20 @@ def _notification_priority(value):
 
 
 def get_notifications(request):
-    if request.user.is_authenticated and getattr(request, 'authz_token', None):
+    if request.user.is_authenticated and getattr(request, "authz_token", None):
         unread_notifications = 0
         try:
             notifications = list(
-                request.airavata.research.get_all_notifications(
-                    settings.GATEWAY_ID))
+                request.airavata.research.get_all_notifications(settings.GATEWAY_ID)
+            )
         except Exception:
             logger.warning("Failed to load notifications")
             notifications = []
-        current_time = datetime.datetime.utcnow()
+        # naive UTC (matches the naive datetimes from fromtimestamp below);
+        # replaces deprecated utcnow() without making this tz-aware
+        current_time = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
         valid_notifications = []
         for notification in notifications:
-
             notification_data = {
                 "notificationId": notification.notification_id,
                 "gatewayId": notification.gateway_id,
@@ -80,26 +93,32 @@ def get_notifications(request):
                 "priority": _notification_priority(notification.priority),
             }
             expirationTime = datetime.datetime.fromtimestamp(
-                notification.expiration_time / 1000)
+                notification.expiration_time / 1000
+            )
             publishedTime = datetime.datetime.fromtimestamp(
-                notification.published_time / 1000)
+                notification.published_time / 1000
+            )
 
-            if(expirationTime > current_time and publishedTime < current_time):
-                notification_data['url'] = request.build_absolute_uri(
-                    reverse('django_airavata_api:ack-notifications'))\
-                    + "?id=" + str(notification.notification_id)
+            if expirationTime > current_time and publishedTime < current_time:
+                notification_data["url"] = (
+                    request.build_absolute_uri(
+                        reverse("django_airavata_api:ack-notifications")
+                    )
+                    + "?id="
+                    + str(notification.notification_id)
+                )
 
-                is_read = notification_read_state(
-                    request.user.username).get(
-                        notification.notification_id, False)
-                notification_data['is_read'] = is_read
+                is_read = notification_read_state(request.user.username).get(
+                    notification.notification_id, False
+                )
+                notification_data["is_read"] = is_read
                 if not is_read:
                     unread_notifications += 1
                 valid_notifications.append(notification_data)
 
         return {
             "notifications": json.dumps(valid_notifications),
-            "unread_notifications": unread_notifications
+            "unread_notifications": unread_notifications,
         }
     else:
         return {"notifications": json.dumps([])}
@@ -109,74 +128,79 @@ def user_session_data(request):
     data = {}
     if request.user.is_authenticated:
         data["username"] = request.user.username
-        data["airavataInternalUserId"] = (request.user.username +
-                                          "@" +
-                                          settings.GATEWAY_ID)
+        data["airavataInternalUserId"] = (
+            request.user.username + "@" + settings.GATEWAY_ID
+        )
         # is_gateway_admin may not be set if a failure occurs during login
         data["isGatewayAdmin"] = getattr(request, "is_gateway_admin", False)
     return {
         "user_session_data": json.dumps(data),
         # Keycloak account console for the "User Settings" link in base.html.
         "KEYCLOAK_ACCOUNT_CONSOLE_URL": getattr(
-            settings, "KEYCLOAK_ACCOUNT_CONSOLE_URL", ""),
+            settings, "KEYCLOAK_ACCOUNT_CONSOLE_URL", ""
+        ),
     }
 
 
 def airavata_app_registry(request):
     """Put airavata django apps into the context."""
-    airavata_apps = [app for app in apps.get_app_configs()
-                     if isinstance(app, AiravataAppConfig) and
-                     (getattr(app, 'enabled', None) is None or
-                      app.enabled(request)
-                      ) and
-                     app.label not in settings.HIDDEN_AIRAVATA_APPS]
+    airavata_apps = [
+        app
+        for app in apps.get_app_configs()
+        if isinstance(app, AiravataAppConfig)
+        and (getattr(app, "enabled", None) is None or app.enabled(request))
+        and app.label not in settings.HIDDEN_AIRAVATA_APPS
+    ]
     # Sort by app_order then by verbose_name (case-insensitive)
-    airavata_apps.sort(
-        key=lambda app: "{:09}-{}".format(app.app_order,
-                                          app.verbose_name.lower()))
+    airavata_apps.sort(key=lambda app: f"{app.app_order:09}-{app.verbose_name.lower()}")
     current_app = _get_current_app(request, airavata_apps)
 
     return {
-        'airavata_apps': airavata_apps,
-        'current_airavata_app': current_app,
-        'airavata_app_nav': (_get_app_nav(request, current_app)
-                             if current_app else None)
+        "airavata_apps": airavata_apps,
+        "current_airavata_app": current_app,
+        "airavata_app_nav": (
+            _get_app_nav(request, current_app) if current_app else None
+        ),
     }
 
 
 def _get_current_app(request, apps):
     current_app = [
-        app for app in apps
-        if request.resolver_match and
-        app.url_app_name == request.resolver_match.app_name]
+        app
+        for app in apps
+        if request.resolver_match
+        and app.url_app_name == request.resolver_match.app_name
+    ]
     return current_app[0] if len(current_app) > 0 else None
 
 
 def _get_app_nav(request, current_app):
-    if hasattr(current_app, 'nav'):
+    if hasattr(current_app, "nav"):
         # Copy and filter current_app's nav items
-        nav = [item
-               for item in copy.copy(current_app.nav)
-               if 'enabled' not in item or item['enabled'](request)]
+        nav = [
+            item
+            for item in copy.copy(current_app.nav)
+            if "enabled" not in item or item["enabled"](request)
+        ]
         # convert "/djangoapp/path/in/app" to "path/in/app"
         app_path = "/".join(request.path.split("/")[2:])
         for nav_item in nav:
-            if 'active_prefixes' in nav_item:
-                if re.match("|".join(nav_item['active_prefixes']), app_path):
-                    nav_item['active'] = True
+            if "active_prefixes" in nav_item:
+                if re.match("|".join(nav_item["active_prefixes"]), app_path):
+                    nav_item["active"] = True
                 else:
-                    nav_item['active'] = False
+                    nav_item["active"] = False
             else:
                 # 'active_prefixes' is optional, and if not specified, assume
                 # current item is active
-                nav_item['active'] = True
+                nav_item["active"] = True
     else:
         # Default to the home view in the app
         nav = [
             {
-                'label': current_app.verbose_name,
-                'icon': 'fa ' + current_app.fa_icon_class,
-                'url': current_app.url_home
+                "label": current_app.verbose_name,
+                "icon": "fa " + current_app.fa_icon_class,
+                "url": current_app.url_home,
             }
         ]
     return nav
@@ -184,5 +208,4 @@ def _get_app_nav(request, current_app):
 
 def google_analytics_tracking_id(request):
     """Put the Google Analytics tracking id into context."""
-    return {'ga_tracking_id':
-            getattr(settings, 'GOOGLE_ANALYTICS_TRACKING_ID', None)}
+    return {"ga_tracking_id": getattr(settings, "GOOGLE_ANALYTICS_TRACKING_ID", None)}

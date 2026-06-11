@@ -2,7 +2,6 @@ import logging
 from importlib import import_module
 from importlib.metadata import entry_points
 
-
 # AppConfig instances from custom Django apps
 CUSTOM_DJANGO_APPS = []
 
@@ -19,19 +18,18 @@ def load(installed_apps, entry_point_group="airavata.djangoapp"):
         # Create path to AppConfig class (otherwise the ready() method doesn't get
         # called)
         logger.info(f"adding dynamic Django app {entry_point.name}")
-        installed_apps.append("{}.{}".format(entry_point.module, entry_point.attr))
+        installed_apps.append(f"{entry_point.module}.{entry_point.attr}")
 
 
 def merge_setting_dict(default, custom_setting):
     # FIXME: only handles dict settings, doesn't handle lists
     if isinstance(custom_setting, dict):
-        for k in custom_setting.keys():
+        for k in custom_setting:
             if k not in default:
                 default[k] = custom_setting[k]
             else:
                 raise Exception(
-                    "Custom django app setting conflicts with "
-                    "key {} in {}".format(k, default)
+                    f"Custom django app setting conflicts with key {k} in {default}"
                 )
 
 
@@ -48,6 +46,6 @@ def merge_settings(settings_module):
             )
             s = custom_django_app.settings
             merge_setting_dict(
-                getattr(settings_module, "WEBPACK_LOADER"),
+                settings_module.WEBPACK_LOADER,
                 getattr(s, "WEBPACK_LOADER", {}),
             )

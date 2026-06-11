@@ -43,6 +43,7 @@ log = logging.getLogger(__name__)
 # status
 # ---------------------------------------------------------------------------
 
+
 class _Status:
     """Namespace of the HTTP status constants callers reference as
     ``status.HTTP_*`` (mirrors ``rest_framework.status``)."""
@@ -66,6 +67,7 @@ status = _Status()
 # Response
 # ---------------------------------------------------------------------------
 
+
 class Response(HttpResponse):
     """An ``HttpResponse`` initialized with *unrendered* data (like DRF).
 
@@ -84,7 +86,7 @@ class Response(HttpResponse):
 
     def __init__(self, data=None, status=200, headers=None, content_type=None):
         # Initialize the HttpResponse with an empty body; do NOT serialize yet.
-        super().__init__(content=b'', status=status, content_type=content_type)
+        super().__init__(content=b"", status=status, content_type=content_type)
         self.data = data
         self._is_rendered = False
         if headers:
@@ -95,10 +97,9 @@ class Response(HttpResponse):
     def rendered_content(self):
         """The JSON-encoded body bytes for ``self.data`` (empty for 204/None)."""
         if self.status_code == status.HTTP_204_NO_CONTENT or self.data is None:
-            return b''
-        self['Content-Type'] = 'application/json'
-        return json.dumps(
-            to_jsonable(self.data), cls=DjangoJSONEncoder).encode('utf-8')
+            return b""
+        self["Content-Type"] = "application/json"
+        return json.dumps(to_jsonable(self.data), cls=DjangoJSONEncoder).encode("utf-8")
 
     def render(self):
         """Materialize ``rendered_content`` into ``self.content`` (idempotent).
@@ -129,6 +130,7 @@ class Response(HttpResponse):
 # ---------------------------------------------------------------------------
 # Exceptions
 # ---------------------------------------------------------------------------
+
 
 class ParseError(Exception):
     """Raised for malformed request input; maps to HTTP 400."""
@@ -161,7 +163,7 @@ class ValidationError(Exception):
 # Permissions
 # ---------------------------------------------------------------------------
 
-SAFE_METHODS = ('GET', 'HEAD', 'OPTIONS')
+SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 
 
 class OperationHolderMixin:
@@ -198,6 +200,7 @@ class _OperandHolder(OperationHolderMixin):
 
 class BasePermissionMetaclass(OperationHolderMixin, type):
     """Metaclass so the operators work on permission *classes* directly."""
+
     pass
 
 
@@ -226,12 +229,14 @@ class AND:
         self.op2 = op2
 
     def has_permission(self, request, view):
-        return (self.op1.has_permission(request, view) and
-                self.op2.has_permission(request, view))
+        return self.op1.has_permission(request, view) and self.op2.has_permission(
+            request, view
+        )
 
     def has_object_permission(self, request, view, obj):
-        return (self.op1.has_object_permission(request, view, obj) and
-                self.op2.has_object_permission(request, view, obj))
+        return self.op1.has_object_permission(
+            request, view, obj
+        ) and self.op2.has_object_permission(request, view, obj)
 
 
 class OR:
@@ -240,17 +245,19 @@ class OR:
         self.op2 = op2
 
     def has_permission(self, request, view):
-        return (self.op1.has_permission(request, view) or
-                self.op2.has_permission(request, view))
+        return self.op1.has_permission(request, view) or self.op2.has_permission(
+            request, view
+        )
 
     def has_object_permission(self, request, view, obj):
         # Mirror DRF: an OR short-circuits at the request level — if op1 already
         # granted request-level access, object-level access is also granted.
         return (
-            (self.op1.has_permission(request, view) and
-             self.op1.has_object_permission(request, view, obj)) or
-            (self.op2.has_permission(request, view) and
-             self.op2.has_object_permission(request, view, obj))
+            self.op1.has_permission(request, view)
+            and self.op1.has_object_permission(request, view, obj)
+        ) or (
+            self.op2.has_permission(request, view)
+            and self.op2.has_object_permission(request, view, obj)
         )
 
 
@@ -279,14 +286,14 @@ def _cls_invert(cls):
     return _OperandHolder(NOT, cls)
 
 
-OperationHolderMixin.__or__ = lambda self, other: _OperandHolder(OR, self, other)
-OperationHolderMixin.__and__ = lambda self, other: _OperandHolder(AND, self, other)
-OperationHolderMixin.__invert__ = lambda self: _OperandHolder(NOT, self)
+OperationHolderMixin.__or__ = lambda self, other: _OperandHolder(OR, self, other)  # ty: ignore[invalid-assignment]  # intentional monkeypatch so class-level operators return _OperandHolder
+OperationHolderMixin.__and__ = lambda self, other: _OperandHolder(AND, self, other)  # ty: ignore[invalid-assignment]  # intentional monkeypatch so class-level operators return _OperandHolder
+OperationHolderMixin.__invert__ = lambda self: _OperandHolder(NOT, self)  # ty: ignore[invalid-assignment]  # intentional monkeypatch so class-level operators return _OperandHolder
 
 
 class IsAuthenticated(BasePermission):
     def has_permission(self, request, view):
-        user = getattr(request, 'user', None)
+        user = getattr(request, "user", None)
         return bool(user and user.is_authenticated)
 
 
@@ -313,11 +320,13 @@ GRPC_STATUS_TO_HTTP = {
 
 class NotAuthenticated(Exception):
     """Permission failure for an unauthenticated request (maps to 401)."""
+
     pass
 
 
 class PermissionDenied(Exception):
     """Permission failure for an authenticated request (maps to 403)."""
+
     pass
 
 
@@ -330,46 +339,57 @@ def exception_to_response(exc, request=None):
         if code == grpc.StatusCode.UNAVAILABLE:
             log.warning("gRPC UNAVAILABLE", exc_info=exc)
             return Response(
-                {'detail': detail, 'apiServerDown': True},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                {"detail": detail, "apiServerDown": True},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         http_status = GRPC_STATUS_TO_HTTP.get(
-            code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            code, status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
         if http_status >= 500:
             log.error("gRPC error %s", code, exc_info=exc)
         else:
             log.warning("gRPC error %s", code, exc_info=exc)
-        return Response({'detail': detail}, status=http_status)
+        return Response({"detail": detail}, status=http_status)
 
     if isinstance(exc, (ObjectDoesNotExist,)):
         log.warning("ObjectDoesNotExist", exc_info=exc)
-        return Response({'detail': str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
 
     if isinstance(exc, Http404):
-        return Response({'detail': str(exc) or "Not found."},
-                        status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"detail": str(exc) or "Not found."}, status=status.HTTP_404_NOT_FOUND
+        )
 
     if isinstance(exc, NotAuthenticated):
-        return Response({'detail': str(exc) or "Authentication credentials were not provided.",
-                         'is_authenticated': False},
-                        status=status.HTTP_401_UNAUTHORIZED)
+        return Response(
+            {
+                "detail": str(exc) or "Authentication credentials were not provided.",
+                "is_authenticated": False,
+            },
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
 
     if isinstance(exc, PermissionDenied):
-        return Response({'detail': str(exc) or "You do not have permission to perform this action."},
-                        status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {
+                "detail": str(exc)
+                or "You do not have permission to perform this action."
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     if isinstance(exc, (ParseError, ValidationError)):
-        return Response({'detail': exc.detail},
-                        status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": exc.detail}, status=status.HTTP_400_BAD_REQUEST)
 
     # Generic handler
     log.error("API exception", exc_info=exc)
-    return Response({'detail': str(exc)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response({"detail": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ---------------------------------------------------------------------------
 # Query-param helpers (ports of DRF's ~10-line impls).
 # ---------------------------------------------------------------------------
+
 
 def replace_query_param(url, key, val):
     """Return ``url`` with the query parameter ``key`` set to ``val``."""
@@ -392,6 +412,7 @@ def remove_query_param(url, key):
 # ---------------------------------------------------------------------------
 # Rendering helpers shared by APIView / ViewSet dispatch.
 # ---------------------------------------------------------------------------
+
 
 def _render_response(result):
     """Normalize a handler return value into an ``HttpResponse`` to return.
@@ -416,6 +437,7 @@ def _instantiate_permissions(permission_classes):
 # APIView
 # ---------------------------------------------------------------------------
 
+
 class APIView(View):
     """Plain-Django reimplementation of ``rest_framework.views.APIView``.
 
@@ -429,14 +451,22 @@ class APIView(View):
     permission_classes = [IsAuthenticated]
 
     # Subclasses (and the ViewSet routing layer) may override.
-    http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head',
-                         'options', 'trace']
+    http_method_names = [
+        "get",
+        "post",
+        "put",
+        "patch",
+        "delete",
+        "head",
+        "options",
+        "trace",
+    ]
 
     def get_permissions(self):
         return _instantiate_permissions(self.permission_classes)
 
     def permission_denied(self, request, message=None):
-        user = getattr(request, 'user', None)
+        user = getattr(request, "user", None)
         if not (user and user.is_authenticated):
             raise NotAuthenticated(message)
         raise PermissionDenied(message)
@@ -445,13 +475,15 @@ class APIView(View):
         for permission in self.get_permissions():
             if not permission.has_permission(request, self):
                 self.permission_denied(
-                    request, message=getattr(permission, 'message', None))
+                    request, message=getattr(permission, "message", None)
+                )
 
     def check_object_permissions(self, request, obj):
         for permission in self.get_permissions():
             if not permission.has_object_permission(request, self, obj):
                 self.permission_denied(
-                    request, message=getattr(permission, 'message', None))
+                    request, message=getattr(permission, "message", None)
+                )
 
     def initial(self, request, *args, **kwargs):
         self.check_permissions(request)
@@ -462,8 +494,9 @@ class APIView(View):
         self.kwargs = kwargs
         try:
             self.initial(request, *args, **kwargs)
-            handler = getattr(self, request.method.lower(),
-                              self.http_method_not_allowed)
+            handler = getattr(
+                self, request.method.lower(), self.http_method_not_allowed
+            )
             result = handler(request, *args, **kwargs)
             return _render_response(result)
         except Exception as exc:
@@ -471,13 +504,14 @@ class APIView(View):
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         return Response(
-            {'detail': f'Method "{request.method}" not allowed.'},
-            status=405)
+            {"detail": f'Method "{request.method}" not allowed.'}, status=405
+        )
 
 
 # ---------------------------------------------------------------------------
 # Serializer-less GenericViewSet / ViewSet + model mixins
 # ---------------------------------------------------------------------------
+
 
 class ViewSetMixin:
     """Reproduces DRF ``ViewSetMixin.as_view(actions)`` semantics: map each HTTP
@@ -490,13 +524,14 @@ class ViewSetMixin:
         if not actions:
             raise TypeError(
                 "The `actions` argument must be provided when calling "
-                "`.as_view()` on a ViewSet.")
+                "`.as_view()` on a ViewSet."
+            )
 
         def view(request, *args, **kwargs):
             self = cls(**initkwargs)
-            if 'get' in actions and 'head' not in actions:
-                actions['head'] = actions['get']
-            self.action_map = actions
+            if "get" in actions and "head" not in actions:
+                actions["head"] = actions["get"]
+            self.action_map = actions  # ty: ignore[unresolved-attribute]  # DRF shim: action_map set dynamically on the viewset instance
             for method, action in actions.items():
                 handler = getattr(self, action)
                 setattr(self, method, handler)
@@ -505,17 +540,17 @@ class ViewSetMixin:
             self.kwargs = kwargs
             return self.dispatch(request, *args, **kwargs)
 
-        view.cls = cls
-        view.initkwargs = initkwargs
-        view.actions = actions
+        view.cls = cls  # ty: ignore[unresolved-attribute]  # DRF shim: dynamic function attribute (mirrors DRF as_view)
+        view.initkwargs = initkwargs  # ty: ignore[unresolved-attribute]  # DRF shim: dynamic function attribute (mirrors DRF as_view)
+        view.actions = actions  # ty: ignore[unresolved-attribute]  # DRF shim: dynamic function attribute (mirrors DRF as_view)
         return view
 
     def initialize_request(self, request):
         method = request.method.lower()
-        if method == 'options':
-            self.action = 'metadata'
+        if method == "options":
+            self.action = "metadata"
         else:
-            self.action = self.action_map.get(method)
+            self.action = self.action_map.get(method)  # ty: ignore[unresolved-attribute]  # DRF shim: action_map set on the instance by as_view()
 
     def dispatch(self, request, *args, **kwargs):
         self.request = request
@@ -523,9 +558,12 @@ class ViewSetMixin:
         self.kwargs = kwargs
         self.initialize_request(request)
         try:
-            self.initial(request, *args, **kwargs)
-            handler = getattr(self, request.method.lower(),
-                              self.http_method_not_allowed)
+            self.initial(request, *args, **kwargs)  # ty: ignore[unresolved-attribute]  # mixin: always composed with APIView (ViewSet/GenericViewSet)
+            handler = getattr(
+                self,
+                request.method.lower(),
+                self.http_method_not_allowed,  # ty: ignore[unresolved-attribute]  # mixin: always composed with APIView (ViewSet/GenericViewSet)
+            )
             result = handler(request, *args, **kwargs)
             return _render_response(result)
         except Exception as exc:
@@ -533,12 +571,15 @@ class ViewSetMixin:
 
     @classmethod
     def get_extra_actions(cls):
-        return [method for _, method in
-                getmembers(cls, lambda attr: hasattr(attr, 'mapping'))]
+        return [
+            method
+            for _, method in getmembers(cls, lambda attr: hasattr(attr, "mapping"))
+        ]
 
 
 class ViewSet(ViewSetMixin, APIView):
     """A viewset with no default actions (matches DRF ``ViewSet``)."""
+
     pass
 
 
@@ -549,9 +590,9 @@ class GenericViewSet(ViewSetMixin, APIView):
     """
 
     # Match GenericAPIBackedViewSet's relaxed regex (Airavata ids contain '.').
-    lookup_field = 'pk'
+    lookup_field = "pk"
     lookup_url_kwarg = None
-    lookup_value_regex = '[^/]+'
+    lookup_value_regex = "[^/]+"
 
     serializer_class = None
     queryset = None
@@ -580,11 +621,16 @@ class GenericViewSet(ViewSetMixin, APIView):
         lookup_value = self.kwargs[lookup_url_kwarg]
         try:
             obj = queryset.get(**{self.lookup_field: lookup_value})
-        except (ObjectDoesNotExist, ValueError, TypeError,
-                DjangoValidationError):
+        except (
+            ObjectDoesNotExist,
+            ValueError,
+            TypeError,
+            DjangoValidationError,
+        ) as err:
             raise Http404(
                 f"No {getattr(queryset, 'model', type(self)).__name__} matches "
-                "the given query.")
+                "the given query."
+            ) from err
         self.check_object_permissions(self.request, obj)
         return obj
 
@@ -593,15 +639,16 @@ class GenericViewSet(ViewSetMixin, APIView):
         assert self.serializer_class is not None, (
             f"'{self.__class__.__name__}' should either include a "
             "`serializer_class` attribute, or override the "
-            "`get_serializer_class()` method.")
+            "`get_serializer_class()` method."
+        )
         return self.serializer_class
 
     def get_serializer_context(self):
-        return {'request': self.request, 'view': self}
+        return {"request": self.request, "view": self}
 
     def get_serializer(self, *args, **kwargs):
         serializer_class = self.get_serializer_class()
-        kwargs.setdefault('context', self.get_serializer_context())
+        kwargs.setdefault("context", self.get_serializer_context())
         return serializer_class(*args, **kwargs)
 
     # -- pagination -------------------------------------------------------
@@ -617,8 +664,7 @@ class GenericViewSet(ViewSetMixin, APIView):
     def paginate_queryset(self, queryset):
         if self.paginator is None:
             return None
-        return self.paginator.paginate_queryset(
-            queryset, self.request, view=self)
+        return self.paginator.paginate_queryset(queryset, self.request, view=self)
 
     def get_paginated_response(self, data):
         return self.paginator.get_paginated_response(data)
@@ -626,27 +672,32 @@ class GenericViewSet(ViewSetMixin, APIView):
 
 # -- model mixins (DRF default list/retrieve/create/update/destroy) -------
 
+
+# These mixins are always composed with GenericViewSet, which supplies
+# filter_queryset/get_queryset/paginate_queryset/get_serializer/
+# get_paginated_response/get_object. ty analyzes each mixin standalone, so those
+# attribute accesses read as unresolved here even though they resolve at runtime.
 class ListModelMixin:
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
+        queryset = self.filter_queryset(self.get_queryset())  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
+        page = self.paginate_queryset(queryset)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
+            serializer = self.get_serializer(page, many=True)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
+            return self.get_paginated_response(serializer.data)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
+        serializer = self.get_serializer(queryset, many=True)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
         return Response(serializer.data)
 
 
 class RetrieveModelMixin:
     def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
+        instance = self.get_object()  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
+        serializer = self.get_serializer(instance)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
         return Response(serializer.data)
 
 
 class CreateModelMixin:
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -657,10 +708,9 @@ class CreateModelMixin:
 
 class UpdateModelMixin:
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(
-            instance, data=request.data, partial=partial)
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
@@ -669,13 +719,13 @@ class UpdateModelMixin:
         serializer.save()
 
     def partial_update(self, request, *args, **kwargs):
-        kwargs['partial'] = True
+        kwargs["partial"] = True
         return self.update(request, *args, **kwargs)
 
 
 class DestroyModelMixin:
     def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
+        instance = self.get_object()  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
         self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -685,20 +735,23 @@ class DestroyModelMixin:
 
 # -- composed viewsets (DRF ModelViewSet / ReadOnlyModelViewSet) ----------
 
-class ModelViewSet(CreateModelMixin,
-                   RetrieveModelMixin,
-                   UpdateModelMixin,
-                   DestroyModelMixin,
-                   ListModelMixin,
-                   GenericViewSet):
+
+class ModelViewSet(
+    CreateModelMixin,
+    RetrieveModelMixin,
+    UpdateModelMixin,
+    DestroyModelMixin,
+    ListModelMixin,
+    GenericViewSet,
+):
     """All CRUD actions (matches DRF ``ModelViewSet``)."""
+
     pass
 
 
-class ReadOnlyModelViewSet(RetrieveModelMixin,
-                           ListModelMixin,
-                           GenericViewSet):
+class ReadOnlyModelViewSet(RetrieveModelMixin, ListModelMixin, GenericViewSet):
     """``retrieve()`` + ``list()`` only (matches DRF ``ReadOnlyModelViewSet``)."""
+
     pass
 
 
@@ -731,6 +784,7 @@ viewsets = _Viewsets()
 # @action / @api_view decorators
 # ---------------------------------------------------------------------------
 
+
 def action(detail=False, methods=None, url_path=None, url_name=None, **kwargs):
     """Mark a viewset method as a routable extra action.
 
@@ -740,14 +794,14 @@ def action(detail=False, methods=None, url_path=None, url_name=None, **kwargs):
     attributes, so :func:`route` can route to it (mirrors ``rest_framework``'s
     ``@action``).
     """
-    methods = ['get'] if methods is None else methods
+    methods = ["get"] if methods is None else methods
     methods = [m.lower() for m in methods]
 
     def decorator(func):
-        func.mapping = {m: func.__name__ for m in methods}
+        func.mapping = dict.fromkeys(methods, func.__name__)
         func.detail = detail
         func.url_path = url_path if url_path else func.__name__
-        func.url_name = url_name if url_name else func.__name__.replace('_', '-')
+        func.url_name = url_name if url_name else func.__name__.replace("_", "-")
         func.kwargs = kwargs
         return func
 
@@ -761,7 +815,7 @@ def api_view(http_method_names=None):
     mapping, ``IsAuthenticated`` by default; ``request.data``/``query_params``
     come from the request-augmentation middleware).
     """
-    http_method_names = ['GET'] if http_method_names is None else http_method_names
+    http_method_names = ["GET"] if http_method_names is None else http_method_names
     allowed = [m.lower() for m in http_method_names]
 
     def decorator(func):
@@ -776,10 +830,11 @@ def api_view(http_method_names=None):
 
         # @permission_classes([...]) (below) may override this.
         WrappedAPIView.permission_classes = getattr(
-            func, 'permission_classes', APIView.permission_classes)
+            func, "permission_classes", APIView.permission_classes
+        )
         WrappedAPIView.__name__ = func.__name__
         WrappedAPIView.__doc__ = func.__doc__
-        WrappedAPIView.func = staticmethod(func)
+        WrappedAPIView.func = staticmethod(func)  # ty: ignore[unresolved-attribute]  # dynamic class attribute (mirrors DRF @api_view)
         return WrappedAPIView.as_view()
 
     return decorator
@@ -789,15 +844,18 @@ def permission_classes(permission_classes):
     """``@permission_classes([...])`` for ``@api_view`` functions. Apply it
     *above* ``@api_view`` (DRF order); it stashes the classes the wrapper reads.
     """
+
     def decorator(func):
         func.permission_classes = permission_classes
         return func
+
     return decorator
 
 
 # ---------------------------------------------------------------------------
 # LimitOffsetPagination (ports view_utils.APIResultPagination's base).
 # ---------------------------------------------------------------------------
+
 
 class LimitOffsetPagination:
     """Limit/offset pagination over the request query params.
@@ -810,8 +868,8 @@ class LimitOffsetPagination:
     """
 
     default_limit = 10
-    limit_query_param = 'limit'
-    offset_query_param = 'offset'
+    limit_query_param = "limit"
+    offset_query_param = "offset"
     max_limit = None
 
     def get_limit(self, request):
@@ -838,16 +896,20 @@ class LimitOffsetPagination:
             return None
         self.offset = self.get_offset(request)
         self.request = request
-        return list(queryset[self.offset:self.offset + self.limit])
+        return list(queryset[self.offset : self.offset + self.limit])
 
     def get_paginated_response(self, data):
-        return Response(OrderedDict([
-            ('next', self.get_next_link()),
-            ('previous', self.get_previous_link()),
-            ('results', data),
-            ('limit', self.limit),
-            ('offset', self.offset),
-        ]))
+        return Response(
+            OrderedDict(
+                [
+                    ("next", self.get_next_link()),
+                    ("previous", self.get_previous_link()),
+                    ("results", data),
+                    ("limit", self.limit),
+                    ("offset", self.offset),
+                ]
+            )
+        )
 
     def get_next_link(self):
         url = self.request.build_absolute_uri()
@@ -895,28 +957,32 @@ permissions = _Permissions()
 # The fixed list/detail routes, mirroring DRF SimpleRouter.routes (minus the
 # DynamicRoute placeholders, which are expanded per @action below).
 _LIST_ROUTE = {
-    'url': r'^{prefix}/$',
-    'mapping': {'get': 'list', 'post': 'create'},
-    'name': '{basename}-list',
-    'detail': False,
+    "url": r"^{prefix}/$",
+    "mapping": {"get": "list", "post": "create"},
+    "name": "{basename}-list",
+    "detail": False,
 }
 _DETAIL_ROUTE = {
-    'url': r'^{prefix}/{lookup}/$',
-    'mapping': {'get': 'retrieve', 'put': 'update',
-                'patch': 'partial_update', 'delete': 'destroy'},
-    'name': '{basename}-detail',
-    'detail': True,
+    "url": r"^{prefix}/{lookup}/$",
+    "mapping": {
+        "get": "retrieve",
+        "put": "update",
+        "patch": "partial_update",
+        "delete": "destroy",
+    },
+    "name": "{basename}-detail",
+    "detail": True,
 }
 
 
 def _get_lookup_regex(viewset):
-    lookup_field = getattr(viewset, 'lookup_field', 'pk')
-    lookup_url_kwarg = getattr(viewset, 'lookup_url_kwarg', None) or lookup_field
+    lookup_field = getattr(viewset, "lookup_field", "pk")
+    lookup_url_kwarg = getattr(viewset, "lookup_url_kwarg", None) or lookup_field
     # DRF's SimpleRouter default value pattern is '[^/.]+'; our GenericViewSet
     # base overrides it to '[^/]+'. Use the viewset's value, falling back to the
     # DRF default for viewsets that don't declare one.
-    lookup_value = getattr(viewset, 'lookup_value_regex', '[^/.]+')
-    return f'(?P<{lookup_url_kwarg}>{lookup_value})'
+    lookup_value = getattr(viewset, "lookup_value_regex", "[^/.]+")
+    return f"(?P<{lookup_url_kwarg}>{lookup_value})"
 
 
 def _method_map(viewset, mapping):
@@ -929,8 +995,7 @@ def _method_map(viewset, mapping):
 
 
 def _extra_actions(viewset):
-    return [m for _, m in
-            getmembers(viewset, lambda attr: hasattr(attr, 'mapping'))]
+    return [m for _, m in getmembers(viewset, lambda attr: hasattr(attr, "mapping"))]
 
 
 def route(prefix, viewset, basename, lookup_field=None):
@@ -947,7 +1012,7 @@ def route(prefix, viewset, basename, lookup_field=None):
     if lookup_field is not None:
         # Temporary shadow so the lookup regex uses the override without mutating
         # the viewset class.
-        original = getattr(viewset, 'lookup_field', 'pk')
+        original = getattr(viewset, "lookup_field", "pk")
         viewset.lookup_field = lookup_field
         try:
             lookup = _get_lookup_regex(viewset)
@@ -965,32 +1030,36 @@ def route(prefix, viewset, basename, lookup_field=None):
     specs = []
     specs.append(dict(_LIST_ROUTE))
     for a in list_actions:
-        specs.append({
-            'url': r'^{prefix}/' + _escape(a.url_path) + r'/$',
-            'mapping': dict(a.mapping),
-            'name': '{basename}-' + a.url_name,
-            'detail': False,
-        })
+        specs.append(
+            {
+                "url": r"^{prefix}/" + _escape(a.url_path) + r"/$",
+                "mapping": dict(a.mapping),
+                "name": "{basename}-" + a.url_name,
+                "detail": False,
+            }
+        )
     specs.append(dict(_DETAIL_ROUTE))
     for a in detail_actions:
-        specs.append({
-            'url': r'^{prefix}/{lookup}/' + _escape(a.url_path) + r'/$',
-            'mapping': dict(a.mapping),
-            'name': '{basename}-' + a.url_name,
-            'detail': True,
-        })
+        specs.append(
+            {
+                "url": r"^{prefix}/{lookup}/" + _escape(a.url_path) + r"/$",
+                "mapping": dict(a.mapping),
+                "name": "{basename}-" + a.url_name,
+                "detail": True,
+            }
+        )
 
     urls = []
     for spec in specs:
-        mapping = _method_map(viewset, spec['mapping'])
+        mapping = _method_map(viewset, spec["mapping"])
         if not mapping:
             continue
-        regex = spec['url'].format(prefix=prefix, lookup=lookup)
-        view = viewset.as_view(mapping, basename=basename, detail=spec['detail'])
-        name = spec['name'].format(basename=basename)
+        regex = spec["url"].format(prefix=prefix, lookup=lookup)  # ty: ignore[unresolved-attribute]  # heterogeneous spec dict: "url" is always a str
+        view = viewset.as_view(mapping, basename=basename, detail=spec["detail"])
+        name = spec["name"].format(basename=basename)  # ty: ignore[unresolved-attribute]  # heterogeneous spec dict: "name" is always a str
         urls.append(re_path(regex, view, name=name))
     return urls
 
 
 def _escape(url_path):
-    return url_path.replace('{', '{{').replace('}', '}}')
+    return url_path.replace("{", "{{").replace("}", "}}")

@@ -21,8 +21,8 @@ def create_user_storage_dir(sender, request, user, **kwargs):
     storage = request.airavata.storage
     if not storage.dir_exists("~/"):
         storage.create_dir("~/")
-        log.info("Created home directory for user {}".format(user.username))
+        log.info(f"Created home directory for user {user.username}")
 
-    if hasattr(settings, 'GATEWAY_DATA_SHARED_DIRECTORIES'):
+    if hasattr(settings, "GATEWAY_DATA_SHARED_DIRECTORIES"):
         for name, entry in settings.GATEWAY_DATA_SHARED_DIRECTORIES.items():
-            storage.create_symlink(entry['path'], "~/" + name)
+            storage.create_symlink(entry["path"], "~/" + name)

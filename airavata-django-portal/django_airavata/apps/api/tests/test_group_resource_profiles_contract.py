@@ -31,19 +31,19 @@ composite write flag is resolved by the ViewSet and passed straight into the SDK
 function (no sharing lookup to stub).
 """
 
-from django.test import SimpleTestCase
-
-from airavata_sdk.generated.org.apache.airavata.model.appcatalog.groupresourceprofile import (  # noqa: E501
+from airavata_sdk.generated.org.apache.airavata.model.appcatalog.groupresourceprofile import (
     group_resource_profile_pb2 as grp,
 )
 from airavata_sdk.helpers._envelope import WithAccess
 from airavata_sdk.helpers.compute_resources import get_group_resource_profile
-from django_airavata.apps.api.proto_render import to_jsonable
+from django.test import SimpleTestCase
 
+from django_airavata.apps.api.proto_render import to_jsonable
 
 # ---------------------------------------------------------------------------
 # Stub client — returns a fixed proto from the raw compute facade
 # ---------------------------------------------------------------------------
+
 
 class _FakeCompute:
     def __init__(self, profile):
@@ -69,11 +69,17 @@ def _make_slurm_pref():
         ssh_account_provisioner="prov",
         group_ssh_account_provisioner_configs=[
             grp.GroupAccountSSHProvisionerConfig(
-                resource_id="r1", config_name="cn", config_value="cv")],
+                resource_id="r1", config_name="cn", config_value="cv"
+            )
+        ],
         reservations=[
             grp.ComputeResourceReservation(
-                reservation_id="rid", queue_names=["q1"],
-                start_time=1705320000000, end_time=0)],
+                reservation_id="rid",
+                queue_names=["q1"],
+                start_time=1705320000000,
+                end_time=0,
+            )
+        ],
     )
     return grp.GroupComputeResourcePreference(
         compute_resource_id="cr-slurm",
@@ -82,8 +88,8 @@ def _make_slurm_pref():
         login_user_name="alice",
         scratch_location="/scratch",
         # proto SSH / SFTP — rendered as member NAMES, not Thrift ints.
-        preferred_job_submission_protocol=2,   # SSH
-        preferred_data_movement_protocol=3,    # SFTP
+        preferred_job_submission_protocol=2,  # SSH
+        preferred_data_movement_protocol=3,  # SFTP
         resource_type=grp.ResourceType.SLURM,
         specific_preferences=grp.EnvironmentSpecificPreferences(slurm=slurm),
     )
@@ -95,8 +101,11 @@ def _make_aws_pref():
         resource_type=grp.ResourceType.AWS,
         specific_preferences=grp.EnvironmentSpecificPreferences(
             aws=grp.AwsComputeResourcePreference(
-                region="us-east-1", preferred_ami_id="ami-1",
-                preferred_instance_type="t2.micro")),
+                region="us-east-1",
+                preferred_ami_id="ami-1",
+                preferred_instance_type="t2.micro",
+            )
+        ),
     )
 
 
@@ -111,16 +120,27 @@ def _make_profile():
         group_resource_profile_id="grp-1",
         group_resource_profile_name="Test GRP",
         compute_preferences=[
-            _make_slurm_pref(), _make_aws_pref(), _make_unset_oneof_pref()],
+            _make_slurm_pref(),
+            _make_aws_pref(),
+            _make_unset_oneof_pref(),
+        ],
         compute_resource_policies=[
             grp.ComputeResourcePolicy(
-                resource_policy_id="rp-1", compute_resource_id="cr-slurm",
-                allowed_batch_queues=["normal", "long"])],
+                resource_policy_id="rp-1",
+                compute_resource_id="cr-slurm",
+                allowed_batch_queues=["normal", "long"],
+            )
+        ],
         batch_queue_resource_policies=[
             grp.BatchQueueResourcePolicy(
-                resource_policy_id="bq-1", compute_resource_id="cr-slurm",
-                queuename="normal", max_allowed_nodes=10,
-                max_allowed_cores=100, max_allowed_walltime=60)],
+                resource_policy_id="bq-1",
+                compute_resource_id="cr-slurm",
+                queuename="normal",
+                max_allowed_nodes=10,
+                max_allowed_cores=100,
+                max_allowed_walltime=60,
+            )
+        ],
         creation_time=1705320000000,
         updated_time=1705323600000,
         default_credential_store_token="def-tok",
@@ -211,7 +231,10 @@ _EXPECTED_SNAPSHOT = {
     "group_resource_profile_id": "grp-1",
     "group_resource_profile_name": "Test GRP",
     "compute_preferences": [
-        _EXPECTED_SLURM_PREF, _EXPECTED_AWS_PREF, _EXPECTED_UNSET_PREF],
+        _EXPECTED_SLURM_PREF,
+        _EXPECTED_AWS_PREF,
+        _EXPECTED_UNSET_PREF,
+    ],
     "compute_resource_policies": [
         {
             "resource_policy_id": "rp-1",
@@ -243,11 +266,9 @@ _EXPECTED_SNAPSHOT = {
 
 
 class GroupResourceProfileContractSnapshotTest(SimpleTestCase):
-
     def _render(self, has_write=True):
         client = _FakeClient(_make_profile())
-        result = get_group_resource_profile(
-            client, "grp-1", has_write=has_write)
+        result = get_group_resource_profile(client, "grp-1", has_write=has_write)  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
         return to_jsonable(result)
 
     # ------------------------------------------------------------------
@@ -257,7 +278,7 @@ class GroupResourceProfileContractSnapshotTest(SimpleTestCase):
     def test_sdk_returns_withaccess_carrying_the_proto(self):
         profile = _make_profile()
         client = _FakeClient(profile)
-        result = get_group_resource_profile(client, "grp-1", has_write=True)
+        result = get_group_resource_profile(client, "grp-1", has_write=True)  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
         self.assertIsInstance(result, WithAccess)
         # the proto flows through wholesale — no field copied out.
         self.assertIs(result.message, profile)
@@ -273,8 +294,7 @@ class GroupResourceProfileContractSnapshotTest(SimpleTestCase):
         self.assertEqual(self._render(), _EXPECTED_SNAPSHOT)
 
     def test_exact_top_level_key_set(self):
-        self.assertEqual(
-            set(self._render().keys()), set(_EXPECTED_SNAPSHOT.keys()))
+        self.assertEqual(set(self._render().keys()), set(_EXPECTED_SNAPSHOT.keys()))
 
     def test_exact_slurm_pref_key_set(self):
         cp = self._render()["compute_preferences"][0]
@@ -289,11 +309,11 @@ class GroupResourceProfileContractSnapshotTest(SimpleTestCase):
             if isinstance(obj, dict):
                 for key, value in obj.items():
                     self.assertEqual(
-                        key, key.lower(),
-                        f"key {key!r} is not lowercase/snake_case")
+                        key, key.lower(), f"key {key!r} is not lowercase/snake_case"
+                    )
                     self.assertNotIn(
-                        "ID", key,
-                        f"key {key!r} carries a camelCase 'ID' fragment")
+                        "ID", key, f"key {key!r} carries a camelCase 'ID' fragment"
+                    )
                     _check(value)
             elif isinstance(obj, list):
                 for item in obj:
@@ -305,18 +325,31 @@ class GroupResourceProfileContractSnapshotTest(SimpleTestCase):
         rendered = self._render()
         cp = rendered["compute_preferences"][0]
         for legacy in (
-            "gatewayId", "gatewayID", "groupResourceProfileId",
-            "groupResourceProfileName", "computePreferences",
-            "computeResourcePolicies", "batchQueueResourcePolicies",
-            "creationTime", "updatedTime", "defaultCredentialStoreToken",
-            "userHasWriteAccess", "isOwner", "url",
+            "gatewayId",
+            "gatewayID",
+            "groupResourceProfileId",
+            "groupResourceProfileName",
+            "computePreferences",
+            "computeResourcePolicies",
+            "batchQueueResourcePolicies",
+            "creationTime",
+            "updatedTime",
+            "defaultCredentialStoreToken",
+            "userHasWriteAccess",
+            "isOwner",
+            "url",
         ):
             self.assertNotIn(legacy, rendered)
         for legacy in (
-            "computeResourceId", "overridebyAiravata", "overrideByAiravata",
-            "loginUserName", "scratchLocation",
-            "preferredJobSubmissionProtocol", "preferredDataMovementProtocol",
-            "resourceType", "specificPreferences",
+            "computeResourceId",
+            "overridebyAiravata",
+            "overrideByAiravata",
+            "loginUserName",
+            "scratchLocation",
+            "preferredJobSubmissionProtocol",
+            "preferredDataMovementProtocol",
+            "resourceType",
+            "specificPreferences",
             "resourceSpecificCredentialStoreToken",
         ):
             self.assertNotIn(legacy, cp)
@@ -337,11 +370,11 @@ class GroupResourceProfileContractSnapshotTest(SimpleTestCase):
     def test_unknown_enums_render_as_sentinel_names(self):
         cp = self._render()["compute_preferences"][2]
         self.assertEqual(
-            cp["preferred_job_submission_protocol"],
-            "JOB_SUBMISSION_PROTOCOL_UNKNOWN")
+            cp["preferred_job_submission_protocol"], "JOB_SUBMISSION_PROTOCOL_UNKNOWN"
+        )
         self.assertEqual(
-            cp["preferred_data_movement_protocol"],
-            "DATA_MOVEMENT_PROTOCOL_UNKNOWN")
+            cp["preferred_data_movement_protocol"], "DATA_MOVEMENT_PROTOCOL_UNKNOWN"
+        )
         self.assertEqual(cp["resource_type"], "RESOURCE_TYPE_UNKNOWN")
 
     # ------------------------------------------------------------------
@@ -353,8 +386,7 @@ class GroupResourceProfileContractSnapshotTest(SimpleTestCase):
         sp = cp["specific_preferences"]
         # only the active branch is present — no legacy {"slurm", "aws"} mirror.
         self.assertEqual(set(sp.keys()), {"slurm"})
-        self.assertEqual(
-            sp["slurm"]["allocation_project_number"], "alloc-1")
+        self.assertEqual(sp["slurm"]["allocation_project_number"], "alloc-1")
         # the SLURM allocation_project_number is NOT flattened to the top level.
         self.assertNotIn("allocation_project_number", cp)
 
@@ -370,8 +402,9 @@ class GroupResourceProfileContractSnapshotTest(SimpleTestCase):
         self.assertNotIn("specific_preferences", cp)
 
     def test_slurm_provisioner_acronym_key_is_proto_snake_case(self):
-        slurm = self._render()["compute_preferences"][0][
-            "specific_preferences"]["slurm"]
+        slurm = self._render()["compute_preferences"][0]["specific_preferences"][
+            "slurm"
+        ]
         # proto-direct emits the plain snake_case proto field name, NOT the
         # legacy upper-acronym ``groupSSHAccountProvisionerConfigs``.
         self.assertIn("group_ssh_account_provisioner_configs", slurm)
@@ -392,25 +425,29 @@ class GroupResourceProfileContractSnapshotTest(SimpleTestCase):
         self.assertEqual(rendered["creation_time"], "1705320000000")
         self.assertEqual(rendered["updated_time"], "1705323600000")
         # reservation 0-end_time stays "0" (always_print + int64->string).
-        res = rendered["compute_preferences"][0][
-            "specific_preferences"]["slurm"]["reservations"][0]
+        res = rendered["compute_preferences"][0]["specific_preferences"]["slurm"][
+            "reservations"
+        ][0]
         self.assertEqual(res["start_time"], "1705320000000")
         self.assertEqual(res["end_time"], "0")
 
     def test_default_token_passes_through_not_nulled(self):
         # the legacy empty-string -> None coercion is dropped.
-        self.assertEqual(
-            self._render()["default_credential_store_token"], "def-tok")
+        self.assertEqual(self._render()["default_credential_store_token"], "def-tok")
 
     def test_batch_queue_zero_int_preserved(self):
         profile = grp.GroupResourceProfile(
             group_resource_profile_id="grp-1",
             batch_queue_resource_policies=[
                 grp.BatchQueueResourcePolicy(
-                    resource_policy_id="bq-0", max_allowed_nodes=0)])
+                    resource_policy_id="bq-0", max_allowed_nodes=0
+                )
+            ],
+        )
         client = _FakeClient(profile)
         rendered = to_jsonable(
-            get_group_resource_profile(client, "grp-1", has_write=False))
+            get_group_resource_profile(client, "grp-1", has_write=False)  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
+        )
         bqp = rendered["batch_queue_resource_policies"][0]
         self.assertEqual(bqp["max_allowed_nodes"], 0)
 
@@ -433,7 +470,8 @@ class GroupResourceProfileContractSnapshotTest(SimpleTestCase):
         profile = grp.GroupResourceProfile(group_resource_profile_id="grp-empty")
         client = _FakeClient(profile)
         rendered = to_jsonable(
-            get_group_resource_profile(client, "grp-empty", has_write=False))
+            get_group_resource_profile(client, "grp-empty", has_write=False)  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
+        )
         self.assertEqual(rendered["compute_preferences"], [])
         self.assertEqual(rendered["compute_resource_policies"], [])
         self.assertEqual(rendered["batch_queue_resource_policies"], [])

@@ -33,15 +33,15 @@ from google.protobuf.message import Message
 try:  # pydantic is optional on this path; only composed shapes use it
     from pydantic import BaseModel as _PydanticBaseModel
 except Exception:  # pragma: no cover - pydantic always present in practice
-    _PydanticBaseModel = None
+    _PydanticBaseModel = None  # ty: ignore[invalid-assignment]  # optional-import fallback sentinel
 
 from airavata_sdk.helpers._envelope import WithAccess, WithGroupAccess
 
 # The single source of truth for how every proto on the read path is rendered.
-_MESSAGE_TO_DICT_OPTS = dict(
-    preserving_proto_field_name=True,
-    always_print_fields_with_no_presence=True,
-)
+_MESSAGE_TO_DICT_OPTS = {
+    "preserving_proto_field_name": True,
+    "always_print_fields_with_no_presence": True,
+}
 
 
 def proto_to_dict(message: Message) -> dict:
@@ -69,10 +69,10 @@ def to_jsonable(obj):
         base["is_owner"] = obj.is_owner
         base["is_member"] = obj.is_member
         base["is_gateway_admins_group"] = obj.is_gateway_admins_group
-        base["is_read_only_gateway_admins_group"] = \
+        base["is_read_only_gateway_admins_group"] = (
             obj.is_read_only_gateway_admins_group
-        base["is_default_gateway_users_group"] = \
-            obj.is_default_gateway_users_group
+        )
+        base["is_default_gateway_users_group"] = obj.is_default_gateway_users_group
         return base
     if isinstance(obj, (list, tuple)):
         return [to_jsonable(x) for x in obj]
@@ -83,8 +83,7 @@ def to_jsonable(obj):
         # model may carry protos / ``WithAccess`` envelopes / nested dicts that
         # the SAME renderer flattens.  Plain JSON-able fields are unchanged.
         return {
-            name: to_jsonable(getattr(obj, name))
-            for name in type(obj).model_fields
+            name: to_jsonable(getattr(obj, name)) for name in type(obj).model_fields
         }
     return obj
 
@@ -94,5 +93,4 @@ class ProtoJSONRenderer:
     JSON-encodes it to bytes. Page views call ``.render(data) -> bytes``."""
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
-        return json.dumps(
-            to_jsonable(data), cls=DjangoJSONEncoder).encode('utf-8')
+        return json.dumps(to_jsonable(data), cls=DjangoJSONEncoder).encode("utf-8")

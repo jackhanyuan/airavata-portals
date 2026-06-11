@@ -69,40 +69,35 @@ jobs:
         shell: cmd
 
   build:
-    # ubuntu-22 doesn't support Python 3.6
-    runs-on: ubuntu-20.04
-    needs: build-js
-    strategy:
-      matrix:
-        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: airavata-django-portal
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            requirements-dev.txt
+          path: airavata-django-portal
+      # The portal's only Airavata dependency, airavata-python-sdk, is resolved
+      # from a sibling apache/airavata checkout (see [tool.uv.sources] in
+      # pyproject.toml -> ../../airavata/airavata-python-sdk). It is not on PyPI.
+      - uses: actions/checkout@v4
+        with:
+          repository: apache/airavata
+          path: airavata
+      - name: Install uv (and Python 3.12)
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
       - name: Install dependencies
-        run: |
-          pip install --upgrade pip setuptools wheel
-          pip install -r requirements-dev.txt
-      - name: Run Django Migrate and Check
-        run: |
-          cp django_airavata/settings_local.py.sample django_airavata/settings_local.py
-          python manage.py migrate
-          python manage.py check
-      - name: Run flake8
-        run: |
-          flake8 .
-      # Need the built frontend client code before running some of the Django tests
-      # that use the Django test Client
-      - uses: actions/download-artifact@v3
-        with:
-          name: built-javascript
-          path: django_airavata
+        run: uv sync
+      - name: Lint (ruff)
+        run: uv run ruff check .
+      - name: Format check (ruff)
+        run: uv run ruff format --check .
+      - name: Type check (ty)
+        run: uv run ty check
+      - name: Django system check (no database, no migrations)
+        run: uv run python manage.py check
       - name: Run Django unit tests
-        run: |
-          ./runtests.py
+        run: uv run ./runtests.py

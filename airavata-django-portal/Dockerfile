@@ -62,20 +62,31 @@ RUN yarn run build
 
 
 
-FROM python:3.10-slim as server-stage
+FROM python:3.12-slim as server-stage
 
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PATH="/code/.venv/bin:$PATH"
+
+# uv for dependency management (https://docs.astral.sh/uv/).
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 EXPOSE 8000
 
 WORKDIR /code
-COPY requirements.txt requirements-mysql.txt ./
-COPY setup.* ./
-COPY README.md .
-RUN apt-get update && apt-get install -y git gcc g++ zlib1g-dev libjpeg-dev default-libmysqlclient-dev
-RUN pip install --upgrade pip setuptools wheel --no-cache
-RUN pip install -r requirements.txt --no-cache
-RUN pip install -r requirements-mysql.txt --no-cache
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git gcc g++ zlib1g-dev libjpeg-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# NOTE: the portal's only Airavata dependency is the airavata-python-sdk, resolved
+# from a sibling apache/airavata checkout via [tool.uv.sources] in pyproject.toml.
+# It is not yet on PyPI, so the build context must make it available at
+# ../../airavata/airavata-python-sdk (e.g. build from the workspace root with an
+# appropriate context) or the pin must point at a published release.
+COPY pyproject.toml uv.lock README.md ./
+COPY ./django_airavata ./django_airavata
+RUN uv sync --frozen --no-dev
 
 # Copy in a default settings_local.py file
 COPY ./django_airavata/settings_local.py.sample ./django_airavata/settings_local.py

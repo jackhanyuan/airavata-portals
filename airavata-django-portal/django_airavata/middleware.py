@@ -23,11 +23,12 @@ def airavata_grpc_client(get_response):
 
     def middleware(request):
         request.airavata = SimpleLazyObject(
-            lambda: airavata_client_for_request(request))
+            lambda: airavata_client_for_request(request)
+        )
         try:
             return get_response(request)
         finally:
-            lazy = request.__dict__.get('airavata')
+            lazy = request.__dict__.get("airavata")
             if isinstance(lazy, SimpleLazyObject) and lazy._wrapped is not empty:
                 client = lazy._wrapped
                 if client is not None:

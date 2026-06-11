@@ -21,9 +21,7 @@ verbatim by the proto int32 key (rendered as a decimal STRING), and NO camelCase
 hyperlinks.
 """
 
-from django.test import SimpleTestCase
-
-from airavata_sdk.generated.org.apache.airavata.model.appcatalog.computeresource import (  # noqa: E501
+from airavata_sdk.generated.org.apache.airavata.model.appcatalog.computeresource import (
     compute_resource_pb2,
 )
 from airavata_sdk.generated.org.apache.airavata.model.data.movement import (
@@ -38,12 +36,14 @@ from airavata_sdk.helpers.compute_resources import (
     get_ssh_job_submission,
     get_unicore_job_submission,
 )
-from django_airavata.apps.api.proto_render import to_jsonable
+from django.test import SimpleTestCase
 
+from django_airavata.apps.api.proto_render import to_jsonable
 
 # ---------------------------------------------------------------------------
 # Stub client — records the facade call, returns a fixed proto
 # ---------------------------------------------------------------------------
+
 
 class _FakeCompute:
     def __init__(self, *, local=None, ssh=None, unicore=None, cloud=None):
@@ -79,6 +79,7 @@ class _FakeClient:
 # Representative protos
 # ---------------------------------------------------------------------------
 
+
 def _sec(name):
     return data_movement_pb2.SecurityProtocol.Value(name)
 
@@ -88,13 +89,15 @@ def _make_resource_job_manager():
         resource_job_manager_id="rjm-1",
         resource_job_manager_type=compute_resource_pb2.ResourceJobManagerType.SLURM,
         push_monitoring_endpoint="ep",
-        job_manager_bin_path="/bin")
-    rjm.job_manager_commands[
-        compute_resource_pb2.JobManagerCommand.SUBMISSION] = "sbatch"
-    rjm.job_manager_commands[
-        compute_resource_pb2.JobManagerCommand.JOB_MONITORING] = "squeue"
-    rjm.parallelism_prefix[
-        parallelism_pb2.ApplicationParallelismType.MPI] = "mpirun"
+        job_manager_bin_path="/bin",
+    )
+    rjm.job_manager_commands[compute_resource_pb2.JobManagerCommand.SUBMISSION] = (
+        "sbatch"
+    )
+    rjm.job_manager_commands[compute_resource_pb2.JobManagerCommand.JOB_MONITORING] = (
+        "squeue"
+    )
+    rjm.parallelism_prefix[parallelism_pb2.ApplicationParallelismType.MPI] = "mpirun"
     return rjm
 
 
@@ -102,7 +105,8 @@ def _make_local():
     return compute_resource_pb2.LOCALSubmission(
         job_submission_interface_id="ls-1",
         resource_job_manager=_make_resource_job_manager(),
-        security_protocol=_sec("LOCAL"))
+        security_protocol=_sec("LOCAL"),
+    )
 
 
 def _make_ssh():
@@ -113,7 +117,8 @@ def _make_ssh():
         alternative_ssh_host_name="alt.host",
         ssh_port=22,
         monitor_mode=compute_resource_pb2.MonitorMode.MONITOR_FORK,
-        batch_queue_email_senders=["a@x.com", "b@x.com"])
+        batch_queue_email_senders=["a@x.com", "b@x.com"],
+    )
 
 
 def _make_cloud():
@@ -123,14 +128,16 @@ def _make_cloud():
         node_id="n1",
         executable_type="exe",
         provider_name=compute_resource_pb2.ProviderName.AWSEC2,
-        user_account_name="acct")
+        user_account_name="acct",
+    )
 
 
 def _make_unicore():
     return compute_resource_pb2.UnicoreJobSubmission(
         job_submission_interface_id="u-1",
         security_protocol=_sec("GSI"),
-        unicore_end_point_url="https://u")
+        unicore_end_point_url="https://u",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -183,32 +190,31 @@ _EXPECTED_UNICORE = {
 
 
 class JobSubmissionContractSnapshotTest(SimpleTestCase):
-
     # ------------------------------------------------------------------
     # Full snapshots — SDK helper returns the proto, to_jsonable flattens it
     # ------------------------------------------------------------------
 
     def test_local_snapshot_matches(self):
         client = _FakeClient(local=_make_local())
-        rendered = to_jsonable(get_local_job_submission(client, "ls-1"))
+        rendered = to_jsonable(get_local_job_submission(client, "ls-1"))  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
         self.assertEqual(rendered, _EXPECTED_LOCAL)
         self.assertEqual(client.compute.calls, [("local", "ls-1")])
 
     def test_ssh_snapshot_matches(self):
         client = _FakeClient(ssh=_make_ssh())
-        rendered = to_jsonable(get_ssh_job_submission(client, "ssh-1"))
+        rendered = to_jsonable(get_ssh_job_submission(client, "ssh-1"))  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
         self.assertEqual(rendered, _EXPECTED_SSH)
         self.assertEqual(client.compute.calls, [("ssh", "ssh-1")])
 
     def test_cloud_snapshot_matches(self):
         client = _FakeClient(cloud=_make_cloud())
-        rendered = to_jsonable(get_cloud_job_submission(client, "cl-1"))
+        rendered = to_jsonable(get_cloud_job_submission(client, "cl-1"))  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
         self.assertEqual(rendered, _EXPECTED_CLOUD)
         self.assertEqual(client.compute.calls, [("cloud", "cl-1")])
 
     def test_unicore_snapshot_matches(self):
         client = _FakeClient(unicore=_make_unicore())
-        rendered = to_jsonable(get_unicore_job_submission(client, "u-1"))
+        rendered = to_jsonable(get_unicore_job_submission(client, "u-1"))  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
         self.assertEqual(rendered, _EXPECTED_UNICORE)
         self.assertEqual(client.compute.calls, [("unicore", "u-1")])
 
@@ -217,18 +223,22 @@ class JobSubmissionContractSnapshotTest(SimpleTestCase):
     # ------------------------------------------------------------------
 
     def test_enums_are_member_names_not_thrift_ints(self):
-        ssh = to_jsonable(get_ssh_job_submission(
-            _FakeClient(ssh=_make_ssh()), "ssh-1"))
+        ssh = to_jsonable(get_ssh_job_submission(_FakeClient(ssh=_make_ssh()), "ssh-1"))  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
         self.assertEqual(ssh["security_protocol"], "SSH_KEYS")
         self.assertEqual(ssh["monitor_mode"], "MONITOR_FORK")
         self.assertEqual(
-            ssh["resource_job_manager"]["resource_job_manager_type"], "SLURM")
-        cloud = to_jsonable(get_cloud_job_submission(
-            _FakeClient(cloud=_make_cloud()), "cl-1"))
+            ssh["resource_job_manager"]["resource_job_manager_type"], "SLURM"
+        )
+        cloud = to_jsonable(
+            get_cloud_job_submission(_FakeClient(cloud=_make_cloud()), "cl-1")  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
+        )
         self.assertEqual(cloud["provider_name"], "AWSEC2")
         # Not the historical Thrift integers (1 / 4 / 2 / 1).
-        for v in (ssh["security_protocol"], ssh["monitor_mode"],
-                  cloud["provider_name"]):
+        for v in (
+            ssh["security_protocol"],
+            ssh["monitor_mode"],
+            cloud["provider_name"],
+        ):
             self.assertIsInstance(v, str)
 
     # ------------------------------------------------------------------
@@ -236,13 +246,11 @@ class JobSubmissionContractSnapshotTest(SimpleTestCase):
     # ------------------------------------------------------------------
 
     def test_resource_job_manager_maps_keyed_verbatim(self):
-        ssh = to_jsonable(get_ssh_job_submission(
-            _FakeClient(ssh=_make_ssh()), "ssh-1"))
+        ssh = to_jsonable(get_ssh_job_submission(_FakeClient(ssh=_make_ssh()), "ssh-1"))  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
         rjm = ssh["resource_job_manager"]
         # NOT the legacy composite "JobManagerCommand.SUBMISSION" keys — the
         # proto int32 enum value verbatim ("1" SUBMISSION, "2" JOB_MONITORING).
-        self.assertEqual(
-            rjm["job_manager_commands"], {"1": "sbatch", "2": "squeue"})
+        self.assertEqual(rjm["job_manager_commands"], {"1": "sbatch", "2": "squeue"})
         self.assertEqual(rjm["parallelism_prefix"], {"2": "mpirun"})
 
     # ------------------------------------------------------------------
@@ -250,8 +258,7 @@ class JobSubmissionContractSnapshotTest(SimpleTestCase):
     # ------------------------------------------------------------------
 
     def test_ssh_port_is_a_number(self):
-        ssh = to_jsonable(get_ssh_job_submission(
-            _FakeClient(ssh=_make_ssh()), "ssh-1"))
+        ssh = to_jsonable(get_ssh_job_submission(_FakeClient(ssh=_make_ssh()), "ssh-1"))  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
         self.assertIsInstance(ssh["ssh_port"], int)
         self.assertEqual(ssh["ssh_port"], 22)
 
@@ -259,9 +266,11 @@ class JobSubmissionContractSnapshotTest(SimpleTestCase):
         """An unset message field (explicit presence) stays ABSENT — the nested
         resource_job_manager is only present when populated."""
         local = compute_resource_pb2.LOCALSubmission(
-            job_submission_interface_id="ls-min")
-        rendered = to_jsonable(get_local_job_submission(
-            _FakeClient(local=local), "ls-min"))
+            job_submission_interface_id="ls-min"
+        )
+        rendered = to_jsonable(
+            get_local_job_submission(_FakeClient(local=local), "ls-min")  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
+        )
         self.assertNotIn("resource_job_manager", rendered)
 
     # ------------------------------------------------------------------
@@ -280,25 +289,30 @@ class JobSubmissionContractSnapshotTest(SimpleTestCase):
         return keys
 
     def test_no_camelcase_or_acronym_keys(self):
-        ssh = to_jsonable(get_ssh_job_submission(
-            _FakeClient(ssh=_make_ssh()), "ssh-1"))
-        uni = to_jsonable(get_unicore_job_submission(
-            _FakeClient(unicore=_make_unicore()), "u-1"))
+        ssh = to_jsonable(get_ssh_job_submission(_FakeClient(ssh=_make_ssh()), "ssh-1"))  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
+        uni = to_jsonable(
+            get_unicore_job_submission(_FakeClient(unicore=_make_unicore()), "u-1")  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
+        )
         legacy = {
-            "jobSubmissionInterfaceId", "securityProtocol", "monitorMode",
-            "sshPort", "alternativeSshHostName", "alternativeSSHHostName",
-            "resourceJobManager", "batchQueueEmailSenders",
-            "unicoreEndPointUrl", "unicoreEndPointURL", "providerName",
+            "jobSubmissionInterfaceId",
+            "securityProtocol",
+            "monitorMode",
+            "sshPort",
+            "alternativeSshHostName",
+            "alternativeSSHHostName",
+            "resourceJobManager",
+            "batchQueueEmailSenders",
+            "unicoreEndPointUrl",
+            "unicoreEndPointURL",
+            "providerName",
         }
         for key in self._all_keys(ssh) | self._all_keys(uni):
             self.assertNotIn(key, legacy, f"legacy key {key!r} leaked")
             # map keys are decimal strings ("0", "1"); scalar field keys are
             # lowercase snake_case (no uppercase fragments).
             if not key.isdigit():
-                self.assertEqual(
-                    key, key.lower(), f"key {key!r} is not snake_case")
+                self.assertEqual(key, key.lower(), f"key {key!r} is not snake_case")
 
     def test_no_hyperlink_fields(self):
-        ssh = to_jsonable(get_ssh_job_submission(
-            _FakeClient(ssh=_make_ssh()), "ssh-1"))
+        ssh = to_jsonable(get_ssh_job_submission(_FakeClient(ssh=_make_ssh()), "ssh-1"))  # ty: ignore[invalid-argument-type]  # _FakeClient is a duck-typed test double
         self.assertNotIn("url", ssh)

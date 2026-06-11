@@ -85,29 +85,6 @@ AIRAVATA_API_PORT = 8930
 AIRAVATA_API_SECURE = False
 FILE_UPLOAD_TEMP_DIR = '/tmp'
 
-USER_STORAGES = {
-    'default': {
-        'BACKEND': 'airavata_django_portal_sdk.user_storage.backends.DjangoFileSystemProvider',
-        'STORAGE_RESOURCE_ID': '...',
-        # Note: This storage resource ID will be used for both inputStorageResourceId
-        # and outputStorageResourceId when experiments are created/launched.
-        'OPTIONS': {
-            'directory': '/tmp/experiment-data-dir',
-        }
-    },
-    # Or for MFT integration
-    #     'default': {
-    #         'BACKEND': 'airavata_django_portal_sdk.user_storage.backends.MFTUserStorageProvider',
-    #         'STORAGE_RESOURCE_ID': '...',
-    #         'OPTIONS': {
-    #             'resource_token': 'local-ssh-cred',
-    #             'mft_api_endpoint': 'localhost:7004',
-    #             'resource_per_gateway': True,
-    #             'base_resource_path': '...'
-    #         }
-    #     }
-}
-
 # Define shared directories. Each entry is symlinked into the user's storage.
 # GATEWAY_DATA_SHARED_DIRECTORIES = {
 #     'Display Name': {

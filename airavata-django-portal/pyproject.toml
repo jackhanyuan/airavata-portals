@@ -1,0 +1,87 @@
+[project]
+name = "airavata-django-portal"
+version = "0.1"
+description = "The Airavata Django Portal is a web interface to the Apache Airavata API implemented using the Django web framework."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+authors = [{ name = "Apache Software Foundation", email = "dev@airavata.apache.org" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
+]
+dependencies = [
+    "Django==5.2.15",
+    "requests==2.25.1",
+    "requests-oauthlib==0.7.0",
+    "django-webpack-loader==0.6.0",
+    "PyJWT==2.13.0",
+    # Notebook output rendering (apps/api/output_views.py).
+    "papermill>=2.6.0",
+    "nbconvert>=7.16.0",
+    # gRPC runtime for the Airavata SDK stubs.
+    "grpcio>=1.60.0",
+    "protobuf>=5.26.0,<7.0.0",
+    "googleapis-common-protos>=1.62.0",
+    # The gRPC Airavata SDK is the portal's sole Airavata dependency, resolved
+    # from the sibling apache/airavata checkout via [tool.uv.sources] below.
+    "airavata-python-sdk>=3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/apache/airavata-django-portal"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9",
+    "ty",
+]
+
+[tool.uv.sources]
+airavata-python-sdk = { path = "../../airavata/airavata-python-sdk", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["django_airavata"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+extend-exclude = [
+    "**/migrations",
+    "settings_local.py",
+    "**/node_modules",
+    "**/static",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "DJ", "RUF"]
+# E501 (line length) is owned by `ruff format`; RUF012 fights Django's mutable
+# class attributes (Meta, fields), so it is disabled rather than annotated away.
+ignore = ["E501", "RUF012"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["django_airavata", "tests"]
+
+[tool.ty.environment]
+python-version = "3.12"
+# ty does not follow the editable airavata-python-sdk install's .pth, so point it
+# at the SDK source so `airavata_sdk.*` (incl. generated protobuf) resolves.
+extra-paths = ["../../airavata/airavata-python-sdk"]
+
+[tool.ty.src]
+include = ["django_airavata", "tests", "manage.py", "runtests.py"]
+exclude = ["**/migrations", "settings_local.py"]
