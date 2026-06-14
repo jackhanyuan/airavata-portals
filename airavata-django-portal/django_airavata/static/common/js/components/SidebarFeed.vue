@@ -1,13 +1,15 @@
 <template>
-  <ol v-if="feedItems && feedItems.length > 0" class="feed">
+  <ol v-if="feedItems && feedItems.length > 0" class="m-0 list-none p-0">
     <sidebar-feed-item
       v-for="feedItem in feedItems"
       :feed-item="feedItem"
       :key="feedItem.id"
     >
-      <div slot-scope="slotProps">
+      <template v-slot="slotProps">
+<div>
         <slot name="description" :feedItem="slotProps.feedItem" />
       </div>
+</template>
     </sidebar-feed-item>
   </ol>
 </template>

@@ -1,5 +1,7 @@
 <template>
-  <b-button :href="downloadUrl" :download="fileName">Download</b-button>
+  <Button as="a" variant="outline" :href="downloadUrl" :download="fileName"
+    >Download</Button
+  >
 </template>
 
 <script>
@@ -11,12 +13,12 @@ export default {
     },
     dataProductUri: {
       required: true,
-    }
+    },
   },
   computed: {
     downloadUrl() {
       return `/sdk/download/?data-product-uri=${this.dataProductUri}`;
-    }
-  }
+    },
+  },
 };
 </script>

@@ -1,106 +1,84 @@
 <template>
-  <b-form>
-    <b-form-group
-      label="Reservation name"
-      label-for="reservation-name"
-      :invalid-feedback="nameValidationFeedback"
-      :state="nameValidationState"
-    >
-      <b-form-input
+  <form class="space-y-4">
+    <div class="space-y-1.5">
+      <Label for="reservation-name">Reservation name</Label>
+      <Input
         id="reservation-name"
         v-model="data.reservation_name"
         type="text"
         @input="nameInputBegins = true"
-        :state="nameValidationState"
+        :aria-invalid="nameValidationState === false"
       />
-    </b-form-group>
-    <b-form-group
-      label="Start Time"
-      label-for="start-time"
-      :invalid-feedback="getValidationFeedback('start_time')"
-      :state="getValidationState('start_time')"
-    >
-      <datetime
+      <p v-if="nameValidationState === false" class="text-sm text-destructive">
+        {{ nameValidationFeedback }}
+      </p>
+    </div>
+    <div class="space-y-1.5">
+      <Label for="start-time">Start Time</Label>
+      <flat-pickr
         id="start-time"
-        type="datetime"
-        :value="startTimeAsString"
-        input-class="form-control"
-        :format="{
-          year: 'numeric',
-          month: '2-digit',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          timeZoneName: 'short',
-        }"
-        :phrases="{ ok: 'Continue', cancel: 'Exit' }"
-        :hour-step="1"
-        :minute-step="30"
-        :week-start="7"
-        use12-hour
-        auto
-        @input="data.start_time = stringToDate($event)"
-      ></datetime>
-    </b-form-group>
-    <b-form-group
-      label="End Time"
-      label-for="end-time"
-      :invalid-feedback="getValidationFeedback('end_time')"
-      :state="getValidationState('end_time')"
-    >
-      <datetime
-        id="end-time"
-        type="datetime"
-        :value="endTimeAsString"
-        :input-class="{
-          'form-control': true,
-          'is-invalid': getValidationState('end_time'),
-        }"
-        :format="{
-          year: 'numeric',
-          month: '2-digit',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          timeZoneName: 'short',
-        }"
-        :phrases="{ ok: 'Continue', cancel: 'Exit' }"
-        :hour-step="1"
-        :minute-step="30"
-        :week-start="7"
-        :min-datetime="startTimeAsString"
-        use12-hour
-        auto
-        @input="data.end_time = stringToDate($event)"
-      ></datetime>
-    </b-form-group>
-    <b-form-group
-      label="Queues"
-      label-for="queues"
-      :invalid-feedback="getValidationFeedback('queue_names')"
-      :state="getValidationState('queue_names')"
-    >
-      <b-form-checkbox-group
-        id="queues"
-        v-model="data.queue_names"
-        :options="queueNameOptions"
-        :state="getValidationState('queue_names')"
+        class="border-input focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-3"
+        :model-value="startTimeAsString"
+        :config="startTimeConfig"
+        @update:model-value="data.start_time = stringToDate($event)"
       />
-    </b-form-group>
-  </b-form>
+      <p
+        v-if="getValidationState('start_time') === false"
+        class="text-sm text-destructive"
+      >
+        {{ getValidationFeedback("start_time") }}
+      </p>
+    </div>
+    <div class="space-y-1.5">
+      <Label for="end-time">End Time</Label>
+      <flat-pickr
+        id="end-time"
+        class="border-input focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-3"
+        :class="{ 'border-destructive': getValidationState('end_time') }"
+        :model-value="endTimeAsString"
+        :config="endTimeConfig"
+        @update:model-value="data.end_time = stringToDate($event)"
+      />
+      <p
+        v-if="getValidationState('end_time') === false"
+        class="text-sm text-destructive"
+      >
+        {{ getValidationFeedback("end_time") }}
+      </p>
+    </div>
+    <div class="space-y-1.5">
+      <Label>Queues</Label>
+      <div class="flex flex-col gap-2">
+        <label
+          v-for="queueName in queueNameOptions"
+          :key="queueName"
+          class="flex items-center gap-2 text-sm"
+        >
+          <Checkbox
+            :model-value="data.queue_names.includes(queueName)"
+            @update:model-value="toggleQueue(queueName, $event)"
+          />
+          {{ queueName }}
+        </label>
+      </div>
+      <p
+        v-if="getValidationState('queue_names') === false"
+        class="text-sm text-destructive"
+      >
+        {{ getValidationFeedback("queue_names") }}
+      </p>
+    </div>
+  </form>
 </template>
 
 <script>
 import { mixins, utils } from "django-airavata-common-ui";
-import { Datetime } from "vue-datetime";
-import "vue-datetime/dist/vue-datetime.css";
 
 export default {
   name: "compute-resource-reservation-editor",
+  // <flat-pickr> is registered globally in main.js (vue-flatpickr-component),
+  // replacing the Vue 2-only vue-datetime <datetime> picker.
   mixins: [mixins.VModelMixin],
-  components: {
-    datetime: Datetime,
-  },
   props: {
     queues: {
       type: Array,
@@ -112,10 +90,39 @@ export default {
       nameInputBegins: false,
     };
   },
-  created() {
-    this.$on("input", this.valuesChanged);
+  watch: {
+    // Vue 3 removed component $on; this replaces the previous
+    // `this.$on("input", this.valuesChanged)` self-listener: re-validate
+    // whenever the bound model changes.
+    data: {
+      handler() {
+        this.valuesChanged();
+      },
+      deep: true,
+    },
   },
   computed: {
+    startTimeConfig() {
+      return {
+        enableTime: true,
+        dateFormat: "Z",
+        altInput: true,
+        altFormat: "Y-m-d h:i K",
+        minuteIncrement: 30,
+        time_24hr: false,
+      };
+    },
+    endTimeConfig() {
+      return {
+        enableTime: true,
+        dateFormat: "Z",
+        altInput: true,
+        altFormat: "Y-m-d h:i K",
+        minuteIncrement: 30,
+        time_24hr: false,
+        minDate: this.startTimeAsString,
+      };
+    },
     startTimeAsString() {
       return this.data.start_time.toISOString();
     },
@@ -136,6 +143,18 @@ export default {
     },
   },
   methods: {
+    toggleQueue(queueName, checked) {
+      if (checked) {
+        if (!this.data.queue_names.includes(queueName)) {
+          this.data.queue_names.push(queueName);
+        }
+      } else {
+        const index = this.data.queue_names.indexOf(queueName);
+        if (index >= 0) {
+          this.data.queue_names.splice(index, 1);
+        }
+      }
+    },
     stringToDate(datetimeString) {
       return new Date(datetimeString);
     },

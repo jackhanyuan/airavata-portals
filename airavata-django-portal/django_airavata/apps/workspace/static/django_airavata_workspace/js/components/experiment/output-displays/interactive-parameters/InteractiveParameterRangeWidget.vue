@@ -1,17 +1,18 @@
 <template>
   <div>
-    <b-form-input
+    <input
       ref="rangeInput"
       type="range"
+      class="w-full accent-primary"
       :value="value"
       :min="parameter.min"
       :max="parameter.max"
       :step="parameter.step || 'any'"
-      @input="updateValue"
+      @input="updateValue($event.target.value)"
       @mouseup="mouseUp"
       @keyup="keyUp"
     />
-    <small>Value: {{ roundedValue }}</small>
+    <small class="text-muted-foreground">Value: {{ roundedValue }}</small>
   </div>
 </template>
 

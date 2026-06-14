@@ -1,37 +1,30 @@
 <template>
-  <div>
-    <div class="row">
-      <div class="col">
-        <h1 class="h4 mb-4">Groups</h1>
-      </div>
-      <div id="col-new-group" class="col-sm-2">
-        <b-button href="create" :variant="'primary'"
-          >Create New Group&nbsp;&nbsp;<i
-            class="fa fa-plus"
-            aria-hidden="true"
-          ></i
-        ></b-button>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col">
-        <div class="card">
-          <div class="card-body">
-            <group-list v-bind:groupsForOwners="groupsOwners"></group-list>
-            <pager
-              v-bind:paginator="groupPaginator"
-              v-on:next="nextGroups"
-              v-on:previous="previousGroups"
-            ></pager>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <main-layout
+    title="Groups"
+    subtitle="Create and manage groups to share resources with other users."
+  >
+    <template #actions>
+      <Button as="a" href="create">
+        Create New Group
+        <Plus class="size-4" aria-hidden="true" />
+      </Button>
+    </template>
+    <Card>
+      <CardContent>
+        <group-list :groupsForOwners="groupsOwners"></group-list>
+        <pager
+          :paginator="groupPaginator"
+          @next="nextGroups"
+          @previous="previousGroups"
+        ></pager>
+      </CardContent>
+    </Card>
+  </main-layout>
 </template>
 
 <script>
 import GroupList from "../group_components/GroupList.vue";
+import { Plus } from "@lucide/vue";
 
 import { services } from "django-airavata-api";
 import { components as comps } from "django-airavata-common-ui";
@@ -44,8 +37,10 @@ export default {
     };
   },
   components: {
+    "main-layout": comps.MainLayout,
     "group-list": GroupList,
     pager: comps.Pager,
+    Plus,
   },
   methods: {
     nextGroups: function () {
@@ -67,12 +62,3 @@ export default {
   },
 };
 </script>
-
-<style>
-#col-new-group {
-  text-align: right;
-}
-#modal-new-group {
-  text-align: left;
-}
-</style>

@@ -1,321 +1,344 @@
 <template>
-  <div v-if="localFullExperiment">
-    <div class="row">
-      <div class="col-auto mr-auto">
-        <h1 class="h4 mb-4">
-          <slot name="title">Experiment Summary</slot>
-        </h1>
-      </div>
-      <div class="col-auto">
-        <share-button :entity-id="experiment.experiment_id" />
-        <b-link v-if="isEditable" class="btn btn-primary" :href="editLink">
-          Edit
-          <i class="fa fa-edit" aria-hidden="true"></i>
-        </b-link>
-        <b-link v-if="isLaunchable" class="btn btn-primary" @click="onLaunch">
-          Launch
-          <i class="fa fa-running" aria-hidden="true"></i>
-        </b-link>
-        <b-btn v-if="isClonable" variant="primary" @click="onClone">
-          Clone
-          <i class="fa fa-copy" aria-hidden="true"></i>
-        </b-btn>
-        <b-btn v-if="isCancelable" variant="primary" @click="onCancel">
-          Cancel
-          <i class="fa fa-window-close" aria-hidden="true"></i>
-        </b-btn>
-      </div>
-    </div>
+  <main-layout
+    v-if="localFullExperiment"
+    subtitle="Review experiment details, status, and outputs."
+  >
+    <template #title>
+      <h1 class="text-2xl font-semibold tracking-tight text-foreground">
+        <slot name="title">Experiment Summary</slot>
+      </h1>
+    </template>
+    <template #actions>
+      <share-button :entity-id="experiment.experiment_id" />
+      <Button v-if="isEditable" as="a" variant="outline" :href="editLink">
+        Edit
+        <Pencil class="size-4" aria-hidden="true" />
+      </Button>
+      <Button v-if="isLaunchable" variant="default" @click="onLaunch">
+        Launch
+        <Play class="size-4" aria-hidden="true" />
+      </Button>
+      <Button v-if="isClonable" variant="outline" @click="onClone">
+        Clone
+        <Copy class="size-4" aria-hidden="true" />
+      </Button>
+      <Button v-if="isCancelable" variant="destructive" @click="onCancel">
+        Cancel
+        <XSquare class="size-4" aria-hidden="true" />
+      </Button>
+    </template>
     <template v-for="output in experiment.experiment_outputs">
-      <div class="row" v-if="finishedOrExecuting" :key="output.name">
-        <div class="col">
-          <output-display-container :experiment-output="output" />
-        </div>
+      <div class="mt-4" v-if="finishedOrExecuting" :key="output.name">
+        <output-display-container :experiment-output="output" />
       </div>
     </template>
-    <div class="row" v-if="finishedOrExecuting">
-      <div class="col">
-        <experiment-storage-view-container
-          :experimentId="experiment.experiment_id"
-        />
-      </div>
+    <div class="mt-4" v-if="finishedOrExecuting">
+      <experiment-storage-view-container
+        :experimentId="experiment.experiment_id"
+      />
     </div>
-    <div class="row">
-      <div class="col">
-        <div class="card border-default">
-          <div class="card-body">
-            <table class="table">
-              <tbody>
-                <tr>
-                  <th scope="row">Name</th>
-                  <td>
-                    <div :title="experiment.experiment_id">
-                      {{ experiment.experiment_name }}
-                    </div>
-                    <small class="text-muted">
-                      ID: {{ experiment.experiment_id }} (<clipboard-copy-link
-                        :text="experiment.experiment_id"
-                        :link-classes="['text-reset']"
-                      >
-                        copy
-                        <span slot="icon"></span>
-                        <span slot="tooltip"
-                          >Copied ID!</span
-                        > </clipboard-copy-link
-                      >)
-                    </small>
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Description</th>
-                  <td>{{ experiment.description }}</td>
-                </tr>
-                <tr>
-                  <th scope="row">Project</th>
-                  <td v-if="localFullExperiment.project">
-                    {{ localFullExperiment.projectName }}
-                  </td>
-                  <td v-else>
-                    <em>You don't have access to this project.</em>
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Owner</th>
-                  <td>{{ experiment.user_name }}</td>
-                </tr>
-                <tr>
-                  <th scope="row">Application</th>
-                  <td v-if="localFullExperiment.applicationName">
-                    {{ localFullExperiment.applicationName }}
-                  </td>
-                  <td v-else class="font-italic text-muted">
-                    Unable to load interface
-                    {{ localFullExperiment.experiment.executionId }}
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Compute Resource</th>
-                  <td v-if="localFullExperiment.computeHostName">
-                    {{ localFullExperiment.computeHostName }}
-                  </td>
-                  <td v-else class="font-italic text-muted">
-                    Unable to load compute resource
-                    {{ localFullExperiment.resourceHostId }}
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Experiment Status</th>
-                  <td>
-                    <template
-                      v-if="localFullExperiment.experiment.isProgressing"
+    <div class="mt-4">
+      <Card>
+        <CardContent>
+          <table class="w-full text-sm">
+            <tbody>
+              <tr>
+                <th scope="row">Name</th>
+                <td>
+                  <div :title="experiment.experiment_id">
+                    {{ experiment.experiment_name }}
+                  </div>
+                  <small class="text-muted-foreground">
+                    ID: {{ experiment.experiment_id }} (<clipboard-copy-link
+                      :text="experiment.experiment_id"
+                      :link-classes="['text-inherit']"
                     >
-                      <i class="fa fa-sync-alt fa-spin"></i>
-                      <span class="sr-only">Progressing...</span>
-                    </template>
-                    {{ localFullExperiment.experimentStatusName }}
-                  </td>
-                </tr>
-                <tr v-if="stages.length > 0">
-                  <th scope="row">Progress</th>
-                  <td>
-                    <ul class="timeline list-unstyled mb-0">
-                      <li
-                        v-for="stage in stages"
-                        :key="stage.taskId"
-                        class="timeline-item"
-                      >
-                        <div class="timeline-marker">
+                      copy
+                      <template #icon><span></span></template>
+                      <template #tooltip
+                        ><span>Copied ID!</span></template
+                      > </clipboard-copy-link
+                    >)
+                  </small>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Description</th>
+                <td>{{ experiment.description }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Project</th>
+                <td v-if="localFullExperiment.project">
+                  {{ localFullExperiment.projectName }}
+                </td>
+                <td v-else>
+                  <em>You don't have access to this project.</em>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Owner</th>
+                <td>{{ experiment.user_name }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Application</th>
+                <td v-if="localFullExperiment.applicationName">
+                  {{ localFullExperiment.applicationName }}
+                </td>
+                <td v-else class="text-muted-foreground italic">
+                  Unable to load interface
+                  {{ localFullExperiment.experiment.executionId }}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Compute Resource</th>
+                <td v-if="localFullExperiment.computeHostName">
+                  {{ localFullExperiment.computeHostName }}
+                </td>
+                <td v-else class="text-muted-foreground italic">
+                  Unable to load compute resource
+                  {{ localFullExperiment.resourceHostId }}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Experiment Status</th>
+                <td>
+                  <template v-if="localFullExperiment.experiment.isProgressing">
+                    <RefreshCw class="inline size-4 animate-spin" />
+                    <span class="sr-only">Progressing...</span>
+                  </template>
+                  {{ localFullExperiment.experimentStatusName }}
+                </td>
+              </tr>
+              <tr v-if="stages.length > 0">
+                <th scope="row">Progress</th>
+                <td>
+                  <ul class="timeline list-unstyled mb-0">
+                    <li
+                      v-for="stage in stages"
+                      :key="stage.taskId"
+                      class="timeline-item"
+                    >
+                      <div class="timeline-marker">
+                        <span
+                          v-if="stage.kind === 'running'"
+                          class="timeline-node timeline-node--running"
+                          :title="stage.taskId"
+                        >
+                          <LoaderCircle class="size-4 animate-spin" />
+                        </span>
+                        <span
+                          v-else
+                          class="timeline-node timeline-dot"
+                          :class="'timeline-dot--' + stage.kind"
+                          :title="stage.taskId"
+                        ></span>
+                        <span class="sr-only">{{ stage.stateLabel }}</span>
+                      </div>
+                      <div class="timeline-content">
+                        <strong>{{ stage.typeLabel }}</strong>
+                        <span v-if="stage.reason" class="text-muted-foreground">
+                          — {{ stage.reason }}</span
+                        >
+                        <small
+                          v-if="stage.time"
+                          class="block text-muted-foreground"
+                          >{{ stage.time }}</small
+                        >
+                        <div v-if="stage.job" class="mt-1 text-sm">
                           <span
-                            v-if="stage.kind === 'running'"
-                            class="timeline-node timeline-node--running"
-                            :title="stage.taskId"
-                          >
-                            <i class="fa fa-circle-notch fa-spin"></i>
-                          </span>
-                          <span
-                            v-else
-                            class="timeline-node timeline-dot"
-                            :class="'timeline-dot--' + stage.kind"
-                            :title="stage.taskId"
+                            class="timeline-dot timeline-dot--inline"
+                            :class="'timeline-dot--' + stage.job.kind"
                           ></span>
-                          <span class="sr-only">{{ stage.stateLabel }}</span>
-                        </div>
-                        <div class="timeline-content">
-                          <strong>{{ stage.typeLabel }}</strong>
-                          <span v-if="stage.reason" class="text-muted">
-                            — {{ stage.reason }}</span
+                          <span class="text-muted-foreground"
+                            >Job {{ stage.job.name }} (ID
+                            {{ stage.job.id }})</span
                           >
-                          <small v-if="stage.time" class="text-muted d-block">{{
-                            stage.time
-                          }}</small>
-                          <div v-if="stage.job" class="mt-1 small">
-                            <span
-                              class="timeline-dot timeline-dot--inline"
-                              :class="'timeline-dot--' + stage.job.kind"
-                            ></span>
-                            <span class="text-muted"
-                              >Job {{ stage.job.name }} (ID
-                              {{ stage.job.id }})</span
-                            >
-                            <span v-if="stage.job.reason" class="text-muted">
-                              — {{ stage.job.reason }}</span
-                            >
-                          </div>
+                          <span
+                            v-if="stage.job.reason"
+                            class="text-muted-foreground"
+                          >
+                            — {{ stage.job.reason }}</span
+                          >
                         </div>
-                      </li>
-                    </ul>
-                  </td>
-                </tr>
-                <!--  TODO: leave this out for now -->
-                <!-- <tr>
+                      </div>
+                    </li>
+                  </ul>
+                </td>
+              </tr>
+              <!--  TODO: leave this out for now -->
+              <!-- <tr>
                                     <th scope="row">Notification List</th>
                                     <td>{{ experiment.emailAddresses
                                             ? experiment.emailAddresses.join(", ")
                                             : '' }}</td>
                                 </tr> -->
-                <tr>
-                  <th scope="row">Creation Time</th>
-                  <td>
-                    <span :title="experiment.creation_time.toString()">{{
-                      creationTime
-                    }}</span>
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Last Modified Time</th>
-                  <td>
-                    <span
-                      :title="
-                        localFullExperiment.experimentStatus.time_of_state_change.toString()
-                      "
-                      >{{ lastModifiedTime }}</span
-                    >
-                  </td>
-                </tr>
-                <tr v-if="groupResourceProfile">
-                  <th scope="row">Allocation</th>
-                  <td>
-                    <b-link :href="viewGroupResourceProfileLink">
-                      {{ groupResourceProfile.group_resource_profile_name }}
-                    </b-link>
-                  </td>
-                </tr>
-                <tr v-if="showQueueSettings">
-                  <th scope="row">Wall Time Limit</th>
-                  <td>
-                    {{
-                      experiment.user_configuration_data
-                        .computational_resource_scheduling.wall_time_limit
-                    }}
-                    minutes
-                  </td>
-                </tr>
-                <tr v-if="showQueueSettings">
-                  <th scope="row">CPU Count</th>
-                  <td>
-                    {{
-                      experiment.user_configuration_data
-                        .computational_resource_scheduling.total_cpu_count
-                    }}
-                  </td>
-                </tr>
-                <tr v-if="showQueueSettings">
-                  <th scope="row">Node Count</th>
-                  <td>
-                    {{
-                      experiment.user_configuration_data
-                        .computational_resource_scheduling.node_count
-                    }}
-                  </td>
-                </tr>
-                <tr
-                  v-if="
-                    showQueueSettings &&
+              <tr>
+                <th scope="row">Creation Time</th>
+                <td>
+                  <span :title="experiment.creation_time.toString()">{{
+                    creationTime
+                  }}</span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Last Modified Time</th>
+                <td>
+                  <span
+                    :title="
+                      localFullExperiment.experimentStatus.time_of_state_change.toString()
+                    "
+                    >{{ lastModifiedTime }}</span
+                  >
+                </td>
+              </tr>
+              <tr v-if="groupResourceProfile">
+                <th scope="row">Allocation</th>
+                <td>
+                  <a class="text-primary" :href="viewGroupResourceProfileLink">
+                    {{ groupResourceProfile.group_resource_profile_name }}
+                  </a>
+                </td>
+              </tr>
+              <tr v-if="showQueueSettings">
+                <th scope="row">Wall Time Limit</th>
+                <td>
+                  {{
                     experiment.user_configuration_data
-                      .computational_resource_scheduling.total_physical_memory
-                  "
-                >
-                  <th scope="row">Total Physical Memory</th>
-                  <td>
-                    {{
-                      experiment.user_configuration_data.computational_resource_scheduling.total_physical_memory.toLocaleString()
-                    }}
-                    MB
-                  </td>
-                </tr>
-                <tr v-if="showQueueSettings">
-                  <th scope="row">Queue</th>
-                  <td>
-                    {{
-                      experiment.user_configuration_data
-                        .computational_resource_scheduling.queue_name
-                    }}
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Inputs</th>
-                  <td>
-                    <ul>
-                      <li
-                        v-for="input in experiment.experiment_inputs"
-                        :key="input.name"
-                      >
-                        {{ input.name }}:
-                        <template v-if="input.type.isSimpleValueType">
-                          <span class="text-break">{{ input.value }}</span>
-                        </template>
-                        <data-product-viewer
-                          v-for="dp in inputDataProducts[input.name]"
-                          v-else-if="input.type.isFileValueType"
-                          :data-product="dp"
-                          :input-file="true"
-                          :key="dp.product_uri"
-                        />
-                      </li>
-                    </ul>
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">Errors</th>
-                  <td>
-                    <b-card
-                      v-for="error in experiment.errors"
-                      :key="error.error_id"
-                      header="Error"
+                      .computational_resource_scheduling.wall_time_limit
+                  }}
+                  minutes
+                </td>
+              </tr>
+              <tr v-if="showQueueSettings">
+                <th scope="row">CPU Count</th>
+                <td>
+                  {{
+                    experiment.user_configuration_data
+                      .computational_resource_scheduling.total_cpu_count
+                  }}
+                </td>
+              </tr>
+              <tr v-if="showQueueSettings">
+                <th scope="row">Node Count</th>
+                <td>
+                  {{
+                    experiment.user_configuration_data
+                      .computational_resource_scheduling.node_count
+                  }}
+                </td>
+              </tr>
+              <tr
+                v-if="
+                  showQueueSettings &&
+                  experiment.user_configuration_data
+                    .computational_resource_scheduling.total_physical_memory
+                "
+              >
+                <th scope="row">Total Physical Memory</th>
+                <td>
+                  {{
+                    experiment.user_configuration_data.computational_resource_scheduling.total_physical_memory.toLocaleString()
+                  }}
+                  MB
+                </td>
+              </tr>
+              <tr v-if="showQueueSettings">
+                <th scope="row">Queue</th>
+                <td>
+                  {{
+                    experiment.user_configuration_data
+                      .computational_resource_scheduling.queue_name
+                  }}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Inputs</th>
+                <td>
+                  <ul>
+                    <li
+                      v-for="input in experiment.experiment_inputs"
+                      :key="input.name"
                     >
+                      {{ input.name }}:
+                      <template v-if="input.type.isSimpleValueType">
+                        <span class="break-words">{{ input.value }}</span>
+                      </template>
+                      <data-product-viewer
+                        v-for="dp in inputDataProducts[input.name]"
+                        v-else-if="input.type.isFileValueType"
+                        :data-product="dp"
+                        :input-file="true"
+                        :key="dp.product_uri"
+                      />
+                    </li>
+                  </ul>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Errors</th>
+                <td>
+                  <Card
+                    v-for="error in experiment.errors"
+                    :key="error.error_id"
+                    class="mb-2"
+                  >
+                    <CardHeader class="border-b">
+                      <CardTitle class="text-base">Error</CardTitle>
+                    </CardHeader>
+                    <CardContent>
                       <p>{{ error.user_friendly_message }}</p>
-                    </b-card>
+                    </CardContent>
+                  </Card>
+                </td>
+              </tr>
+              <template v-if="failedJobs.length > 0">
+                <tr v-for="job in failedJobs" :key="job.job_id">
+                  <th scope="row">Job Submission Response</th>
+                  <td>
+                    <Card v-if="job.std_out" class="mb-2">
+                      <CardHeader class="border-b">
+                        <CardTitle class="text-base"
+                          >{{ job.job_name }} STDOUT</CardTitle
+                        >
+                      </CardHeader>
+                      <CardContent>
+                        <pre class="max-h-[340px] overflow-auto">{{
+                          job.std_out
+                        }}</pre>
+                      </CardContent>
+                    </Card>
+                    <Card v-if="job.std_err" class="mb-2">
+                      <CardHeader class="border-b">
+                        <CardTitle class="text-base"
+                          >{{ job.job_name }} STDERR</CardTitle
+                        >
+                      </CardHeader>
+                      <CardContent>
+                        <pre class="max-h-[340px] overflow-auto">{{
+                          job.std_err
+                        }}</pre>
+                      </CardContent>
+                    </Card>
                   </td>
                 </tr>
-                <template v-if="failedJobs.length > 0">
-                  <tr v-for="job in failedJobs" :key="job.job_id">
-                    <th scope="row">Job Submission Response</th>
-                    <td>
-                      <b-card
-                        v-if="job.std_out"
-                        :header="job.job_name + ' STDOUT'"
-                      >
-                        <pre class="pre-scrollable">{{ job.std_out }}</pre>
-                      </b-card>
-                      <b-card
-                        v-if="job.std_err"
-                        :header="job.job_name + ' STDERR'"
-                      >
-                        <pre class="pre-scrollable">{{ job.std_err }}</pre>
-                      </b-card>
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+              </template>
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
     </div>
-  </div>
+  </main-layout>
 </template>
 
 <script>
+import {
+  Copy,
+  LoaderCircle,
+  Pencil,
+  Play,
+  RefreshCw,
+  XSquare,
+} from "@lucide/vue";
 import { models } from "django-airavata-api";
 import { components, notifications } from "django-airavata-common-ui";
 import OutputDisplayContainer from "./output-displays/OutputDisplayContainer";
@@ -324,25 +347,31 @@ import urls from "../../utils/urls";
 import moment from "moment";
 import ExperimentStorageViewContainer from "../storage/ExperimentStorageViewContainer.vue";
 import DataProductViewer from "django-airavata-common-ui/js/components/DataProductViewer.vue";
-import { mapActions, mapGetters, mapState } from "vuex";
+import { mapActions, mapState } from "pinia";
+import { useViewExperimentStore } from "../../store";
 
 export default {
   name: "experiment-summary",
   components: {
+    Copy,
+    LoaderCircle,
+    Pencil,
+    Play,
+    RefreshCw,
+    XSquare,
     "clipboard-copy-link": components.ClipboardCopyLink,
+    "main-layout": components.MainLayout,
     "share-button": components.ShareButton,
     OutputDisplayContainer,
     ExperimentStorageViewContainer,
     DataProductViewer,
   },
   computed: {
-    ...mapState("viewExperiment", [
+    ...mapState(useViewExperimentStore, [
       "fullExperiment",
       "launching",
       "clonedExperiment",
       "groupResourceProfile",
-    ]),
-    ...mapGetters("viewExperiment", [
       "finishedOrExecuting",
       "showQueueSettings",
     ]),
@@ -359,9 +388,9 @@ export default {
           (input) => {
             result[input.name] = this.getDataProducts(
               input,
-              this.localFullExperiment.input_data_products
+              this.localFullExperiment.input_data_products,
             );
-          }
+          },
         );
       }
       return result;
@@ -376,19 +405,21 @@ export default {
           (output) => {
             result[output.name] = this.getDataProducts(
               output,
-              this.localFullExperiment.output_data_products
+              this.localFullExperiment.output_data_products,
             );
-          }
+          },
         );
       }
       return result;
     },
     creationTime: function () {
-      return moment(this.localFullExperiment.experiment.creation_time).fromNow();
+      return moment(
+        this.localFullExperiment.experiment.creation_time,
+      ).fromNow();
     },
     lastModifiedTime: function () {
       return moment(
-        this.localFullExperiment.experimentStatus.time_of_state_change
+        this.localFullExperiment.experimentStatus.time_of_state_change,
       ).fromNow();
     },
     experiment: function () {
@@ -396,7 +427,7 @@ export default {
     },
     jobCreationTimes: function () {
       return this.localFullExperiment.job_details.map((jobDetail) =>
-        moment(jobDetail.creation_time).fromNow()
+        moment(jobDetail.creation_time).fromNow(),
       );
     },
     // The experiment's PROCESS -> TASK pipeline as an ordered stage list (env setup, data
@@ -469,7 +500,7 @@ export default {
             this.experiment.latestStatus.state ===
               models.ExperimentState.FAILED ||
             (job.latestJobStatus &&
-              job.latestJobStatus.job_state === models.JobState.FAILED)
+              job.latestJobStatus.job_state === models.JobState.FAILED),
         );
       } else {
         return [];
@@ -482,7 +513,7 @@ export default {
     },
   },
   methods: {
-    ...mapActions("viewExperiment", ["clone", "launch", "cancel"]),
+    ...mapActions(useViewExperimentStore, ["clone", "launch", "cancel"]),
     async onClone() {
       await this.clone();
       urls.navigateToEditExperiment(this.clonedExperiment);
@@ -497,23 +528,23 @@ export default {
           type: "SUCCESS",
           message: "Cancel-experiment requested",
           duration: 5,
-        })
+        }),
       );
     },
     getDataProducts(io, collection) {
       if (!io.value || !collection) {
         return [];
       }
-      let dataProducts = null;
+      let dataProducts;
       if (io.type === models.DataType.URI_COLLECTION) {
         const dataProductURIs = io.value.split(",");
         dataProducts = dataProductURIs.map((uri) =>
-          collection.find((dp) => dp.product_uri === uri)
+          collection.find((dp) => dp.product_uri === uri),
         );
       } else {
         const dataProductURI = io.value;
         dataProducts = collection.filter(
-          (dp) => dp.product_uri === dataProductURI
+          (dp) => dp.product_uri === dataProductURI,
         );
       }
       return dataProducts
@@ -593,6 +624,26 @@ export default {
 </script>
 
 <style scoped>
+/* Replaces Bootstrap's `.table` styling for the summary key/value table after the
+   Tailwind migration: bordered rows with a bold, top-aligned header column. */
+table tbody tr {
+  border-bottom: 1px solid var(--border);
+}
+table tbody tr:last-child {
+  border-bottom: 0;
+}
+table th[scope="row"] {
+  text-align: left;
+  font-weight: 600;
+  vertical-align: top;
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  white-space: nowrap;
+}
+table td {
+  vertical-align: top;
+  padding: 0.5rem 0;
+}
+
 /* Vertical timeline for the experiment Progress (PROCESS -> TASK pipeline). Each task is a
    node (colored dot, or a spinner while running) connected by a vertical line. */
 .timeline {

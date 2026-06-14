@@ -1,27 +1,27 @@
 <template>
-  <b-card
-    :bg-variant="bgVariant"
-    body-bg-variant="white"
-    :header-text-variant="headerTextVariant"
-    class="statistics-card"
-  >
-    <div slot="header" class="text-right">
-      <div class="statistic-count text-nowrap">
-        <abbr :title="count">{{ displayedCount }}</abbr>
-      </div>
-      <div>{{ title }}</div>
-    </div>
-    <b-link
-      :class="'text-decoration-none text-' + linkVariant"
-      @click="$emit('click')"
-    >
-      <slot name="link-text">
-        <div v-for="state in states" :key="state.value">
-          {{ shortName(state) }}
+  <Card class="statistics-card overflow-hidden">
+    <CardHeader>
+      <div class="text-right">
+        <div class="statistic-count whitespace-nowrap">
+          <abbr :title="count">{{ displayedCount }}</abbr>
         </div>
-      </slot>
-    </b-link>
-  </b-card>
+        <div>{{ title }}</div>
+      </div>
+    </CardHeader>
+    <CardContent>
+      <a
+        href="#"
+        class="text-primary hover:no-underline"
+        @click.prevent="$emit('click')"
+      >
+        <slot name="link-text">
+          <div v-for="state in states" :key="state.value">
+            {{ shortName(state) }}
+          </div>
+        </slot>
+      </a>
+    </CardContent>
+  </Card>
 </template>
 
 <script>

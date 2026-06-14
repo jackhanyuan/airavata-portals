@@ -1,140 +1,147 @@
 <template>
   <div>
-    <div class="row">
-      <div class="col">
-        <h1 class="h4 mb-4">Application Interface</h1>
-      </div>
+    <div>
+      <h2 class="mb-4 text-lg font-semibold">Application Interface</h2>
     </div>
-    <div class="row">
-      <div class="col">
-        <b-form-group
-          label="Enable Archiving Working Directory"
-          label-for="archive-directory"
-        >
-          <b-form-radio-group
-            id="archive-directory"
-            v-model="data.archive_working_directory"
-            :options="trueFalseOptions"
-            :disabled="readonly"
-          >
-          </b-form-radio-group>
-        </b-form-group>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div>
+        <div class="space-y-1.5">
+          <Label>Enable Archiving Working Directory</Label>
+          <div class="flex gap-4">
+            <label
+              v-for="opt in trueFalseOptions"
+              :key="String(opt.value)"
+              class="flex items-center gap-2 text-sm"
+            >
+              <input
+                type="radio"
+                :value="opt.value"
+                v-model="data.archive_working_directory"
+                :disabled="readonly"
+              />
+              {{ opt.text }}
+            </label>
+          </div>
+        </div>
       </div>
-      <div class="col">
-        <b-form-group
-          label="Show Queue Settings"
-          label-for="show-queue-settings"
-        >
-          <b-form-radio-group
-            id="show-queue-settings"
-            v-model="data.show_queue_settings"
-            :options="trueFalseOptions"
-            :disabled="readonly"
-          >
-          </b-form-radio-group>
-          <div slot="description">
+      <div class="space-y-4">
+        <div class="space-y-1.5">
+          <Label>Show Queue Settings</Label>
+          <div class="flex gap-4">
+            <label
+              v-for="opt in trueFalseOptions"
+              :key="String(opt.value)"
+              class="flex items-center gap-2 text-sm"
+            >
+              <input
+                type="radio"
+                :value="opt.value"
+                v-model="data.show_queue_settings"
+                :disabled="readonly"
+              />
+              {{ opt.text }}
+            </label>
+          </div>
+          <p class="text-sm text-muted-foreground">
             Show a queue selector along with queue related settings (nodes,
             cores, walltime limit).
-          </div>
-        </b-form-group>
-        <b-form-group
-          label="Queue Settings Calculator"
-          description="Select function to automatically compute queue settings."
-        >
-          <b-form-select
+          </p>
+        </div>
+        <div class="space-y-1.5">
+          <Label>Queue Settings Calculator</Label>
+          <select
             v-model="data.queue_settings_calculator_id"
-            :options="queueSettingsCalculatorOptions"
             :disabled="queueSettingsCalculatorOptions.length === 0"
+            class="border-input focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <template slot="first">
-              <option :value="null">
-                If applicable, select a queue settings calculator
-              </option>
-            </template>
-          </b-form-select>
-        </b-form-group>
+            <option :value="null">
+              If applicable, select a queue settings calculator
+            </option>
+            <option
+              v-for="opt in queueSettingsCalculatorOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >
+              {{ opt.text }}
+            </option>
+          </select>
+          <p class="text-sm text-muted-foreground">
+            Select function to automatically compute queue settings.
+          </p>
+        </div>
       </div>
     </div>
-    <div class="w-100">
-      <b-form-group
-        label="Application Instructions"
-        label-for="application-description"
-      >
-        <b-form-textarea
+    <div class="mt-4 w-full">
+      <div class="space-y-1.5">
+        <Label for="application-description">Application Instructions</Label>
+        <Textarea
           id="application-description"
           :rows="5"
           v-model="data.application_description"
-          :state="
-            !data.application_description ||
-            data.application_description.length < 500
-          "
+          :aria-invalid="descriptionTooLong"
         >
-        </b-form-textarea>
-        <b-form-valid-feedback v-if="!!data.application_description">
+        </Textarea>
+        <p
+          v-if="!!data.application_description && !descriptionTooLong"
+          class="text-sm text-muted-foreground"
+        >
           {{ data.application_description.length }} / 500
-        </b-form-valid-feedback>
-        <b-form-invalid-feedback>
+        </p>
+        <p v-if="descriptionTooLong" class="text-sm text-destructive">
           Application instructions text is limited to 500 characters maximum.
-        </b-form-invalid-feedback>
-      </b-form-group>
+        </p>
+      </div>
     </div>
-    <div class="row">
-      <div class="col">
-        <h1 class="h5 mb-4">Input Fields</h1>
-        <draggable
-          v-model="data.application_inputs"
-          :options="dragOptions"
-          @start="onDragStart"
-          @end="onDragEnd"
-        >
+    <div class="mt-4">
+      <h2 class="mb-4 text-lg font-semibold">Input Fields</h2>
+      <draggable
+        v-model="data.application_inputs"
+        item-key="key"
+        handle=".drag-handle"
+        @start="onDragStart"
+        @end="onDragEnd"
+      >
+        <template #item="{ element: input }">
           <application-input-field-editor
-            v-for="input in data.application_inputs"
             :value="input"
-            :key="input.key"
             :focus="input.key === focusApplicationInputKey"
             :collapse="collapseApplicationInputs"
             @input="updatedInput"
             @delete="deleteInput(input)"
             :readonly="readonly"
           />
-        </draggable>
-      </div>
+        </template>
+      </draggable>
     </div>
-    <div class="row mb-4">
-      <div class="col">
-        <b-button
-          variant="secondary"
-          @click="addApplicationInput"
-          :disabled="readonly"
-        >
-          Add application input
-        </b-button>
-      </div>
+    <div class="my-4">
+      <Button
+        variant="secondary"
+        @click="addApplicationInput"
+        :disabled="readonly"
+      >
+        Add application input
+      </Button>
     </div>
-    <div class="row">
-      <div class="col">
-        <h1 class="h5 mb-4">Output Fields</h1>
-        <application-output-field-editor
-          v-for="output in data.application_outputs"
-          :value="output"
-          :key="output.key"
-          :focus="output.key === focusApplicationOutputKey"
-          @input="updatedOutput"
-          @delete="deleteOutput(output)"
-          :readonly="readonly"
-        />
-      </div>
+    <div>
+      <h2 class="mb-4 text-lg font-semibold">Output Fields</h2>
+      <application-output-field-editor
+        v-for="output in data.application_outputs"
+        :value="output"
+        :key="output.key"
+        :focus="output.key === focusApplicationOutputKey"
+        @input="updatedOutput"
+        @delete="deleteOutput(output)"
+        :readonly="readonly"
+      />
     </div>
-    <div class="row mb-4">
-      <div class="col">
-        <b-button
-          variant="secondary"
-          @click="addApplicationOutput"
-          :disabled="readonly"
-        >
-          Add application output
-        </b-button>
-      </div>
+    <div class="my-4">
+      <Button
+        variant="secondary"
+        @click="addApplicationOutput"
+        :disabled="readonly"
+      >
+        Add application output
+      </Button>
     </div>
   </div>
 </template>
@@ -174,6 +181,12 @@ export default {
         { text: "False", value: false },
       ];
     },
+    descriptionTooLong() {
+      return (
+        !!this.data.application_description &&
+        this.data.application_description.length >= 500
+      );
+    },
     queueSettingsCalculatorOptions() {
       if (this.queueSettingsCalculators) {
         return this.queueSettingsCalculators.map((qsc) => {
@@ -191,9 +204,6 @@ export default {
     return {
       focusApplicationInputKey: null,
       focusApplicationOutputKey: null,
-      dragOptions: {
-        handle: ".drag-handle",
-      },
       collapseApplicationInputs: false,
       queueSettingsCalculators: null,
     };
@@ -207,7 +217,7 @@ export default {
     },
     updatedInput(newValue) {
       const input = this.data.application_inputs.find(
-        (input) => input.key === newValue.key
+        (input) => input.key === newValue.key,
       );
       Object.assign(input, newValue);
     },
@@ -218,13 +228,13 @@ export default {
     },
     deleteInput(input) {
       const inputIndex = this.data.application_inputs.findIndex(
-        (inp) => inp.key === input.key
+        (inp) => inp.key === input.key,
       );
       this.data.application_inputs.splice(inputIndex, 1);
     },
     updatedOutput(newValue) {
       const output = this.data.application_outputs.find(
-        (o) => o.key === newValue.key
+        (o) => o.key === newValue.key,
       );
       Object.assign(output, newValue);
     },
@@ -235,7 +245,7 @@ export default {
     },
     deleteOutput(output) {
       const outputIndex = this.data.application_outputs.findIndex(
-        (o) => o.key === output.key
+        (o) => o.key === output.key,
       );
       this.data.application_outputs.splice(outputIndex, 1);
     },
@@ -246,7 +256,8 @@ export default {
       this.collapseApplicationInputs = false;
     },
     async loadQueueSettingsCalculators() {
-      this.queueSettingsCalculators = await services.QueueSettingsCalculatorService.list();
+      this.queueSettingsCalculators =
+        await services.QueueSettingsCalculatorService.list();
     },
   },
 };

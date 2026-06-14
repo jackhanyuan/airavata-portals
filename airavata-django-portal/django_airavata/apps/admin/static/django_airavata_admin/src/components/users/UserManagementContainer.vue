@@ -1,36 +1,41 @@
 <template>
-  <div>
-    <div class="row">
-      <div class="col-auto mr-auto">
-        <h1 class="h4 mb-4">Manage Users</h1>
-      </div>
-      <div class="col-auto">
-        <b-button :to="{ name: 'extended-user-profile' }"
-          >Extended User Profile</b-button
+  <main-layout
+    title="Manage Users"
+    subtitle="Search and manage gateway user accounts and group memberships."
+  >
+    <template v-slot:actions>
+      <Button variant="outline" as-child>
+        <router-link :to="{ name: 'extended-user-profile' }"
+          >Extended User Profile</router-link
         >
-      </div>
-      <div class="col-auto">
-        <b-dropdown :text="menuText">
-          <b-dropdown-item
-            :to="{ name: 'identity-service-users' }"
-            :exact="true"
-            >Identity Service</b-dropdown-item
-          >
-          <b-dropdown-item
-            :to="{ name: 'unverified-email-users' }"
-            :exact="true"
-            >Unverified Emails</b-dropdown-item
-          >
-        </b-dropdown>
-      </div>
-    </div>
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button variant="outline">{{ menuText }}</Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem as-child>
+            <router-link :to="{ name: 'identity-service-users' }"
+              >Identity Service</router-link
+            >
+          </DropdownMenuItem>
+          <DropdownMenuItem as-child>
+            <router-link :to="{ name: 'unverified-email-users' }"
+              >Unverified Emails</router-link
+            >
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </template>
     <router-view></router-view>
-  </div>
+  </main-layout>
 </template>
 
 <script>
+import { components } from "django-airavata-common-ui";
 export default {
   name: "user-management-container",
+  components: { "main-layout": components.MainLayout },
   computed: {
     menuText() {
       if (this.$route.name === "identity-service-users") {

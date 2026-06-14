@@ -1,21 +1,24 @@
 <template>
-  <b-input-group>
-    <b-form-input
+  <div class="flex">
+    <input
       ref="textInput"
       type="number"
       :value="value"
       :min="parameter.min"
       :max="parameter.max"
       :step="parameter.step || 'any'"
-      @input="updateValue"
-      @keydown.native.enter="enterKeyPressed"
+      class="border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full min-w-0 rounded-l-md border bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-3"
+      @input="updateValue($event.target.value)"
+      @keydown.enter="enterKeyPressed"
     />
-    <b-input-group-append>
-      <b-button variant="primary" :disabled="disabled" @click="submit"
-        >Submit</b-button
-      >
-    </b-input-group-append>
-  </b-input-group>
+    <Button
+      variant="default"
+      class="rounded-l-none"
+      :disabled="disabled"
+      @click="submit"
+      >Submit</Button
+    >
+  </div>
 </template>
 
 <script>

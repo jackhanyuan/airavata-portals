@@ -1,54 +1,58 @@
 <template>
   <div>
-    <div class="row">
-      <div class="col">
-        <h1 class="h4 mb-1">
-          {{ name }}
-        </h1>
-        <p v-if="owner" class="mb-2 text-muted">
-          Created by <span :title="ownerTitle">{{ ownerUserId }}</span>
-        </p>
-        <share-button
-          class="mt-2 mb-2"
-          v-if="localSharedEntity"
-          :shared-entity="localSharedEntity"
-          @saved="savedSharedEntity"
-          @unsaved="unsavedSharedEntity"
-        />
-        <b-form-group
-          label="Application Executable Path"
-          label-for="executable-path"
-        >
-          <b-form-input
+    <div>
+      <h2 class="mb-1 text-lg font-semibold">
+        {{ name }}
+      </h2>
+      <p v-if="owner" class="mb-2 text-muted-foreground">
+        Created by <span :title="ownerTitle">{{ ownerUserId }}</span>
+      </p>
+      <share-button
+        class="mt-2 mb-2"
+        v-if="localSharedEntity"
+        :shared-entity="localSharedEntity"
+        @saved="savedSharedEntity"
+        @unsaved="unsavedSharedEntity"
+      />
+      <div class="space-y-4">
+        <div class="space-y-1.5">
+          <Label for="executable-path">Application Executable Path</Label>
+          <Input
             id="executable-path"
             type="text"
             v-model="data.executable_path"
             required
             :disabled="readonly"
-          ></b-form-input>
-        </b-form-group>
-        <b-form-group
-          label="Application Parallelism Type"
-          label-for="parallelism-type"
-        >
-          <b-form-select
+          ></Input>
+        </div>
+        <div class="space-y-1.5">
+          <Label for="parallelism-type">Application Parallelism Type</Label>
+          <select
             id="parallelism-type"
             v-model="data.parallelism"
-            :options="parallelismTypeOptions"
             :disabled="readonly"
-          />
-        </b-form-group>
-        <b-form-group
-          label="Application Deployment Description"
-          label-for="deployment-description"
-        >
-          <b-form-textarea
+            class="border-input focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option
+              v-for="opt in parallelismTypeOptions"
+              :key="opt.text"
+              :value="opt.value"
+            >
+              {{ opt.text }}
+            </option>
+          </select>
+        </div>
+        <div class="space-y-1.5">
+          <Label for="deployment-description"
+            >Application Deployment Description</Label
+          >
+          <Textarea
             id="deployment-description"
             v-model="data.app_deployment_description"
             :rows="3"
             :disabled="readonly"
-          ></b-form-textarea>
-        </b-form-group>
+          ></Textarea>
+        </div>
         <command-objects-editor
           title="Module Load Commands"
           add-button-label="Add Module Load Command"
@@ -85,55 +89,61 @@
           v-model="data.post_job_commands"
           :readonly="readonly"
         />
-        <b-form-group label="Default Queue Name" label-for="default-queue-name">
-          <b-form-select
+        <div class="space-y-1.5">
+          <Label for="default-queue-name">Default Queue Name</Label>
+          <select
             id="default-queue-name"
             v-model="data.default_queue_name"
-            :options="queueNameOptions"
-            @change="defaultQueueChanged"
+            @change="defaultQueueChanged($event.target.value)"
             :disabled="readonly"
+            class="border-input focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <template slot="first">
-              <option :value="null">Select a Default Queue</option>
-            </template>
-          </b-form-select>
-        </b-form-group>
-        <b-form-group label="Default Node Count" label-for="default-node-count">
-          <b-form-input
+            <option :value="null">Select a Default Queue</option>
+            <option
+              v-for="opt in queueNameOptions"
+              :key="opt.value"
+              :value="opt.value"
+            >
+              {{ opt.text }}
+            </option>
+          </select>
+        </div>
+        <div class="space-y-1.5">
+          <Label for="default-node-count">Default Node Count</Label>
+          <Input
             id="default-node-count"
             type="number"
             v-model="data.default_node_count"
             min="0"
             :max="maxNodes"
             :disabled="defaultQueueAttributesDisabled"
-          ></b-form-input>
-        </b-form-group>
-        <b-form-group label="Default CPU Count" label-for="default-cpu-count">
-          <b-form-input
+          ></Input>
+        </div>
+        <div class="space-y-1.5">
+          <Label for="default-cpu-count">Default CPU Count</Label>
+          <Input
             id="default-cpu-count"
             type="number"
             v-model="data.default_cpu_count"
             min="0"
             :max="maxCPUCount"
             :disabled="defaultQueueAttributesDisabled"
-          ></b-form-input>
-          <template #description v-if="cpuPerNode > 0">
+          ></Input>
+          <p v-if="cpuPerNode > 0" class="text-sm text-muted-foreground">
             There are {{ cpuPerNode }} cores per node.
-          </template>
-        </b-form-group>
-        <b-form-group
-          label="Default Walltime (in minutes)"
-          label-for="default-walltime"
-        >
-          <b-form-input
+          </p>
+        </div>
+        <div class="space-y-1.5">
+          <Label for="default-walltime">Default Walltime (in minutes)</Label>
+          <Input
             id="default-walltime"
             type="number"
             v-model="data.default_walltime"
             min="0"
             :max="maxWalltime"
             :disabled="defaultQueueAttributesDisabled"
-          ></b-form-input>
-        </b-form-group>
+          ></Input>
+        </div>
       </div>
     </div>
   </div>
@@ -173,14 +183,6 @@ export default {
       dirty: false,
     };
   },
-  mounted() {
-    this.$on("input", () => {
-      this.dirty = true;
-    });
-  },
-  destroyed() {
-    this.$off("input");
-  },
   computed: {
     name() {
       if (this.computeResource) {
@@ -211,7 +213,7 @@ export default {
     maxNodes() {
       const queue = this.computeResource
         ? this.computeResource.batch_queues.find(
-            (q) => q.queue_name === this.data.default_queue_name
+            (q) => q.queue_name === this.data.default_queue_name,
           )
         : null;
       return queue ? queue.max_nodes : 0;
@@ -219,7 +221,7 @@ export default {
     maxCPUCount() {
       const queue = this.computeResource
         ? this.computeResource.batch_queues.find(
-            (q) => q.queue_name === this.data.default_queue_name
+            (q) => q.queue_name === this.data.default_queue_name,
           )
         : null;
       return queue ? queue.max_processors : 0;
@@ -227,7 +229,7 @@ export default {
     maxWalltime() {
       const queue = this.computeResource
         ? this.computeResource.batch_queues.find(
-            (q) => q.queue_name === this.data.default_queue_name
+            (q) => q.queue_name === this.data.default_queue_name,
           )
         : null;
       return queue ? queue.max_run_time : 0;
@@ -235,7 +237,7 @@ export default {
     cpuPerNode() {
       const queue = this.computeResource
         ? this.computeResource.batch_queues.find(
-            (q) => q.queue_name === this.data.default_queue_name
+            (q) => q.queue_name === this.data.default_queue_name,
           )
         : null;
       return queue ? queue.cpu_per_node : 0;
@@ -283,7 +285,7 @@ export default {
     defaultQueueChanged(queueName) {
       if (queueName) {
         const queue = this.computeResource.batch_queues.find(
-          (q) => q.queue_name === queueName
+          (q) => q.queue_name === queueName,
         );
         this.data.default_node_count = queue.default_node_count;
         this.data.default_cpu_count = queue.default_cpu_count;
@@ -305,6 +307,15 @@ export default {
   watch: {
     sharedEntity(newValue) {
       this.localSharedEntity = newValue.clone();
+    },
+    // Vue 3 removed component $on/$off; replaces the previous
+    // mounted `$on("input", () => this.dirty = true)` self-listener by marking
+    // the editor dirty whenever the bound model changes.
+    data: {
+      handler() {
+        this.dirty = true;
+      },
+      deep: true,
     },
   },
 };

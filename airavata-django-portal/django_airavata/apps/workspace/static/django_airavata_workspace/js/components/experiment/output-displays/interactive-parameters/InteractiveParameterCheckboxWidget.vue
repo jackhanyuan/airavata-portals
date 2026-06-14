@@ -1,5 +1,8 @@
 <template>
-  <b-form-checkbox :checked="value" @input="$emit('input', $event)" />
+  <Checkbox
+    :model-value="value"
+    @update:model-value="$emit('input', $event)"
+  />
 </template>
 
 <script>

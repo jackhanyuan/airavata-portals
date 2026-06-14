@@ -1,25 +1,30 @@
 <template>
-  <div class="row">
-    <div class="col">
-      <b-form-group label="Allocation" label-for="group-resource-profile">
-        <b-form-select
-          id="group-resource-profile"
-          v-model="groupResourceProfileId"
-          :options="groupResourceProfileOptions"
-          required
-          @change="groupResourceProfileChanged"
+  <div>
+    <div class="space-y-1.5">
+      <Label for="group-resource-profile">Allocation</Label>
+      <select
+        id="group-resource-profile"
+        v-model="groupResourceProfileId"
+        required
+        :class="nativeSelectClass"
+        @change="groupResourceProfileChanged($event.target.value)"
+      >
+        <option :value="null" disabled>Select an allocation</option>
+        <option
+          v-for="option in groupResourceProfileOptions"
+          :key="option.value"
+          :value="option.value"
         >
-          <template slot="first">
-            <option :value="null" disabled>Select an allocation</option>
-          </template>
-        </b-form-select>
-      </b-form-group>
+          {{ option.text }}
+        </option>
+      </select>
     </div>
   </div>
 </template>
 
 <script>
 import { services } from "django-airavata-api";
+import { NATIVE_SELECT_CLASS } from "../../lib/utils";
 
 export default {
   name: "group-resource-profile-selector",
@@ -41,6 +46,10 @@ export default {
     this.validate();
   },
   computed: {
+    nativeSelectClass() {
+      // Native option-driven select styled to match a shadcn <Input>.
+      return NATIVE_SELECT_CLASS;
+    },
     groupResourceProfileOptions: function () {
       if (this.groupResourceProfiles && this.groupResourceProfiles.length > 0) {
         const groupResourceProfileOptions = this.groupResourceProfiles.map(
@@ -49,10 +58,10 @@ export default {
               value: groupResourceProfile.group_resource_profile_id,
               text: groupResourceProfile.group_resource_profile_name,
             };
-          }
+          },
         );
         groupResourceProfileOptions.sort((a, b) =>
-          a.text.localeCompare(b.text)
+          a.text.localeCompare(b.text),
         );
         return groupResourceProfileOptions;
       } else {
@@ -71,22 +80,23 @@ export default {
           if (
             (!this.value ||
               !this.selectedValueInGroupResourceProfileList(
-                groupResourceProfiles
+                groupResourceProfiles,
               )) &&
             this.groupResourceProfiles &&
             this.groupResourceProfiles.length > 0
           ) {
             // automatically select the last one user selected
-            this.groupResourceProfileId = this.workspacePreferences.most_recent_group_resource_profile_id;
+            this.groupResourceProfileId =
+              this.workspacePreferences.most_recent_group_resource_profile_id;
             this.emitValueChanged();
           }
-        }
+        },
       );
     },
     loadWorkspacePreferences() {
       return services.WorkspacePreferencesService.get().then(
         (workspacePreferences) =>
-          (this.workspacePreferences = workspacePreferences)
+          (this.workspacePreferences = workspacePreferences),
       );
     },
     groupResourceProfileChanged: function (groupResourceProfileId) {

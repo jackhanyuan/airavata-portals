@@ -1,38 +1,29 @@
 <template>
-  <div>
-    <div class="d-flex">
-      <slot name="title">
-        <h1 class="h4 mb-4 mr-auto">Edit Project</h1>
-      </slot>
-      <slot name="buttons"> </slot>
+  <form @submit="onSubmit" @input="onUserInput" novalidate class="space-y-4">
+    <div class="space-y-1.5">
+      <Label for="project-name">Project Name</Label>
+      <Input
+        id="project-name"
+        type="text"
+        v-model="data.name"
+        required
+        placeholder="Project name"
+        :aria-invalid="nameState === false"
+      />
+      <p v-if="nameFeedback" class="text-sm text-destructive">
+        {{ nameFeedback }}
+      </p>
     </div>
-    <b-form @submit="onSubmit" @input="onUserInput" novalidate>
-      <b-form-group
-        label="Project Name"
-        label-for="project-name"
-        :feedback="nameFeedback"
-        :state="nameState"
-      >
-        <b-form-input
-          id="project-name"
-          type="text"
-          v-model="data.name"
-          required
-          placeholder="Project name"
-          :state="nameState"
-        ></b-form-input>
-      </b-form-group>
-      <b-form-group label="Project Description" label-for="project-description">
-        <b-form-textarea
-          id="project-description"
-          type="text"
-          v-model="data.description"
-          placeholder="(Optional) Project description"
-          :rows="3"
-        ></b-form-textarea>
-      </b-form-group>
-    </b-form>
-  </div>
+    <div class="space-y-1.5">
+      <Label for="project-description">Project Description</Label>
+      <Textarea
+        id="project-description"
+        v-model="data.description"
+        placeholder="(Optional) Project description"
+        :rows="3"
+      />
+    </div>
+  </form>
 </template>
 
 <script>
@@ -49,7 +40,6 @@ export default {
     },
   },
   mounted() {
-    this.$on("input", this.validate);
     this.validate();
   },
   data() {
@@ -103,6 +93,14 @@ export default {
   watch: {
     value() {
       this.validate();
+    },
+    // Re-validate on internal edits of the working copy. (Replaces the Vue 2
+    // `this.$on("input", ...)` self-listener, which is removed in Vue 3.)
+    data: {
+      handler() {
+        this.validate();
+      },
+      deep: true,
     },
   },
 };

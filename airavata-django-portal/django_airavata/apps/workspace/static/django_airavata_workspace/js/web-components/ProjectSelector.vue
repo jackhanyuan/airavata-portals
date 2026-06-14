@@ -1,9 +1,8 @@
 <template>
-  <b-form-group label="Project">
-    <b-form-select v-model="projectId" required>
-      <template slot="first">
-        <option :value="null" disabled>Select a Project</option>
-      </template>
+  <div class="space-y-1.5">
+    <label class="text-sm leading-none font-medium select-none">Project</label>
+    <select v-model="projectId" required :class="nativeSelectClass">
+      <option :value="null" disabled>Select a Project</option>
       <optgroup label="My Projects">
         <option
           v-for="project in myProjectOptions"
@@ -22,16 +21,14 @@
           {{ project.text }}
         </option>
       </optgroup>
-    </b-form-select>
-  </b-form-group>
+    </select>
+  </div>
 </template>
 
 <script>
-import Vue from "vue";
-import store from "./store";
-import { mapGetters } from "vuex";
-import { BootstrapVue } from "bootstrap-vue";
-Vue.use(BootstrapVue);
+import { mapState } from "pinia";
+import { useExperimentStore } from "./store";
+import { NATIVE_SELECT_CLASS } from "../lib/utils";
 
 export default {
   props: {
@@ -40,17 +37,20 @@ export default {
       default: null,
     },
   },
-  store: store,
   data() {
     return {
       projectId: this.value,
     };
   },
   async mounted() {
-    await this.$store.dispatch("loadProjects");
+    await useExperimentStore().loadProjects();
   },
   computed: {
-    ...mapGetters(["projects"]),
+    ...mapState(useExperimentStore, ["projects"]),
+    nativeSelectClass() {
+      // Native option-driven select styled to match a shadcn <Input>.
+      return NATIVE_SELECT_CLASS;
+    },
     sharedProjectOptions: function () {
       return this.projects
         ? this.projects

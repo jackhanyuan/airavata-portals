@@ -1,28 +1,19 @@
 <template>
-  <div>
-    <div class="row">
-      <div class="col">
-        <h1 class="h4 mb-4">Browse Projects</h1>
-      </div>
-      <div id="col-new-project" class="col">
-        <project-button-new @new-project="onNewProject" />
-      </div>
-    </div>
-    <div class="row">
-      <div class="col">
-        <div class="card">
-          <div class="card-body">
-            <project-list v-bind:projects="projects"></project-list>
-            <pager
-              v-bind:paginator="projectsPaginator"
-              v-on:next="nextProjects"
-              v-on:previous="previousProjects"
-            ></pager>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <main-layout title="Projects" subtitle="Browse and manage your projects.">
+    <template #actions>
+      <project-button-new @new-project="onNewProject" />
+    </template>
+    <Card>
+      <CardContent>
+        <project-list v-bind:projects="projects"></project-list>
+        <pager
+          v-bind:paginator="projectsPaginator"
+          v-on:next="nextProjects"
+          v-on:previous="previousProjects"
+        ></pager>
+      </CardContent>
+    </Card>
+  </main-layout>
 </template>
 
 <script>
@@ -41,6 +32,7 @@ export default {
     };
   },
   components: {
+    "main-layout": comps.MainLayout,
     "project-list": ProjectList,
     "project-button-new": ProjectButtonNew,
     pager: comps.Pager,
@@ -54,7 +46,7 @@ export default {
     },
     onNewProject: function () {
       services.ProjectService.list().then(
-        (result) => (this.projectsPaginator = result)
+        (result) => (this.projectsPaginator = result),
       );
     },
   },
@@ -70,12 +62,3 @@ export default {
   },
 };
 </script>
-
-<style>
-#col-new-project {
-  text-align: right;
-}
-#modal-new-project {
-  text-align: left;
-}
-</style>

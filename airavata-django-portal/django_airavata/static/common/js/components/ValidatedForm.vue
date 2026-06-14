@@ -1,9 +1,8 @@
 <template>
-  <b-form>
-    <template v-for="item in items">
+  <form class="space-y-4">
+    <template v-for="item in items" :key="item.key">
       <validated-form-group
         :label="item.label"
-        :key="item.key"
         :valid="isValid(item.key)"
         :feedback-messages="getFeedbackMessages(item.key)"
         :description="item.description"
@@ -15,7 +14,7 @@
         />
       </validated-form-group>
     </template>
-  </b-form>
+  </form>
 </template>
 
 <script>

@@ -1,46 +1,49 @@
 <template>
   <div>
-    <div class="row">
-      <div class="col">
-        <b-form-group
-          label="Compute Resource"
-          label-for="compute-resource"
-          :feedback="getValidationFeedback('resource_host_id')"
-          :state="getValidationState('resource_host_id')"
+    <div>
+      <div class="space-y-1.5">
+        <Label for="compute-resource">Compute Resource</Label>
+        <select
+          id="compute-resource"
+          v-model="resourceHostId"
+          required
+          :aria-invalid="getValidationState('resource_host_id') === false"
+          :disabled="
+            !computeResourceOptions || computeResourceOptions.length === 0
+          "
+          :class="nativeSelectClass"
+          @change="computeResourceChanged($event.target.value)"
         >
-          <b-form-select
-            id="compute-resource"
-            v-model="resourceHostId"
-            :options="computeResourceOptions"
-            required
-            @change="computeResourceChanged"
-            :state="getValidationState('resource_host_id')"
-            :disabled="
-              !computeResourceOptions || computeResourceOptions.length === 0
-            "
+          <option :value="null" disabled>Select a Compute Resource</option>
+          <option
+            v-for="option in computeResourceOptions"
+            :key="option.value"
+            :value="option.value"
           >
-            <template slot="first">
-              <option :value="null" disabled>Select a Compute Resource</option>
-            </template>
-          </b-form-select>
-        </b-form-group>
+            {{ option.text }}
+          </option>
+        </select>
+        <p
+          v-if="getValidationState('resource_host_id') === false"
+          class="text-sm text-destructive"
+        >
+          {{ getValidationFeedback("resource_host_id") }}
+        </p>
       </div>
     </div>
-    <div class="row">
-      <div class="col">
-        <queue-settings-editor
-          v-model="data"
-          v-if="appDeploymentId"
-          :app-module-id="appModuleId"
-          :app-deployment-id="appDeploymentId"
-          :compute-resource-policy="selectedComputeResourcePolicy"
-          :batch-queue-resource-policies="batchQueueResourcePolicies"
-          @input="queueSettingsChanged"
-          @valid="queueSettingsValidityChanged(true)"
-          @invalid="queueSettingsValidityChanged(false)"
-        >
-        </queue-settings-editor>
-      </div>
+    <div class="mt-4">
+      <queue-settings-editor
+        v-model="data"
+        v-if="appDeploymentId"
+        :app-module-id="appModuleId"
+        :app-deployment-id="appDeploymentId"
+        :compute-resource-policy="selectedComputeResourcePolicy"
+        :batch-queue-resource-policies="batchQueueResourcePolicies"
+        @update:model-value="queueSettingsChanged"
+        @valid="queueSettingsValidityChanged(true)"
+        @invalid="queueSettingsValidityChanged(false)"
+      >
+      </queue-settings-editor>
     </div>
   </div>
 </template>
@@ -54,6 +57,7 @@ import {
   utils as apiUtils,
 } from "django-airavata-api";
 import { mixins, utils } from "django-airavata-common-ui";
+import { NATIVE_SELECT_CLASS } from "../../lib/utils";
 
 export default {
   name: "computational-resource-scheduling-editor",
@@ -88,15 +92,19 @@ export default {
     this.loadWorkspacePreferences().then(() => {
       this.loadApplicationDeployments(
         this.appModuleId,
-        this.groupResourceProfileId
+        this.groupResourceProfileId,
       );
     });
     this.loadComputeResourceNames();
     this.loadGroupResourceProfile();
     this.validate();
-    this.$on("input", () => this.validate());
   },
   computed: {
+    nativeSelectClass() {
+      // Native option-driven select styled to match a shadcn <Input>, plus the
+      // invalid-state ring so it mirrors `:aria-invalid` on shadcn controls.
+      return `${NATIVE_SELECT_CLASS} aria-invalid:border-destructive aria-invalid:ring-destructive/40`;
+    },
     localComputationalResourceScheduling() {
       return this.data;
     },
@@ -123,7 +131,7 @@ export default {
             crp.compute_resource_id ===
             this.localComputationalResourceScheduling.resource_host_id
           );
-        }
+        },
       );
     },
     batchQueueResourcePolicies: function () {
@@ -136,7 +144,7 @@ export default {
             bqrp.compute_resource_id ===
             this.localComputationalResourceScheduling.resource_host_id
           );
-        }
+        },
       );
     },
     appDeploymentId: function () {
@@ -148,7 +156,7 @@ export default {
       }
       // Find application deployment that corresponds to this compute resource
       let selectedApplicationDeployment = this.applicationDeployments.find(
-        (dep) => dep.compute_host_id === this.resourceHostId
+        (dep) => dep.compute_host_id === this.resourceHostId,
       );
       if (!selectedApplicationDeployment) {
         throw new Error("Failed to find application deployment!");
@@ -175,7 +183,7 @@ export default {
           appModuleId: appModuleId,
           groupResourceProfileId: groupResourceProfileId,
         },
-        { ignoreErrors: true }
+        { ignoreErrors: true },
       )
         .then((applicationDeployments) => {
           this.applicationDeployments = applicationDeployments;
@@ -192,7 +200,7 @@ export default {
     loadGroupResourceProfile: function () {
       services.GroupResourceProfileService.retrieve(
         { lookup: this.groupResourceProfileId },
-        { ignoreErrors: true }
+        { ignoreErrors: true },
       )
         .then((groupResourceProfile) => {
           this.selectedGroupResourceProfileData = groupResourceProfile;
@@ -208,13 +216,14 @@ export default {
     },
     loadComputeResourceNames: function () {
       services.ComputeResourceService.names().then(
-        (computeResourceNames) => (this.computeResources = computeResourceNames)
+        (computeResourceNames) =>
+          (this.computeResources = computeResourceNames),
       );
     },
     loadWorkspacePreferences() {
       return services.WorkspacePreferencesService.get().then(
         (workspacePreferences) =>
-          (this.workspacePreferences = workspacePreferences)
+          (this.workspacePreferences = workspacePreferences),
       );
     },
     queueSettingsChanged: function () {
@@ -222,7 +231,8 @@ export default {
       // ComputationalResourceSchedulingModel instance but doesn't know
       // the resourceHostId so we need to copy it back into the instance
       // whenever it changes
-      this.localComputationalResourceScheduling.resource_host_id = this.resourceHostId;
+      this.localComputationalResourceScheduling.resource_host_id =
+        this.resourceHostId;
       this.$emit("input", this.data);
     },
     queueSettingsValidityChanged(valid) {
@@ -248,6 +258,14 @@ export default {
     },
   },
   watch: {
+    // Re-validate whenever the editor's working copy changes. (Replaces the Vue 2
+    // `this.$on("input", ...)` self-listener, which is removed in Vue 3.)
+    data: {
+      handler() {
+        this.validate();
+      },
+      deep: true,
+    },
     computeResourceOptions: function (newOptions) {
       // If the selected resourceHostId is not in the new list of
       // computeResourceOptions, reset it to null
@@ -264,10 +282,11 @@ export default {
         newOptions.find(
           (opt) =>
             opt.value ===
-            this.workspacePreferences.most_recent_compute_resource_id
+            this.workspacePreferences.most_recent_compute_resource_id,
         )
       ) {
-        this.resourceHostId = this.workspacePreferences.most_recent_compute_resource_id;
+        this.resourceHostId =
+          this.workspacePreferences.most_recent_compute_resource_id;
       }
       // If none selected, just pick the first one
       if (this.resourceHostId === null && newOptions.length > 0) {
@@ -278,7 +297,7 @@ export default {
     groupResourceProfileId: function (newGroupResourceProfileId) {
       this.loadApplicationDeployments(
         this.appModuleId,
-        newGroupResourceProfileId
+        newGroupResourceProfileId,
       );
       if (
         this.selectedGroupResourceProfileData &&

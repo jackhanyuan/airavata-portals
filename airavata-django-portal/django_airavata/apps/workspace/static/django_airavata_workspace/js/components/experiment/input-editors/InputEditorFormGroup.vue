@@ -1,13 +1,12 @@
 <template>
-  <b-form-group
-    :label="label"
-    :label-for="labelFor"
-    :state="state"
-    :description="description"
-  >
+  <div class="space-y-1.5">
+    <Label :for="labelFor">{{ label }}</Label>
     <slot></slot>
-    <template slot="invalid-feedback">
-      <ul v-if="feedbackMessages && feedbackMessages.length > 1">
+    <div v-if="state === false" class="text-sm text-destructive">
+      <ul
+        v-if="feedbackMessages && feedbackMessages.length > 1"
+        class="list-disc pl-5"
+      >
         <li v-for="feedback in feedbackMessages" :key="feedback">
           {{ feedback }}
         </li>
@@ -15,9 +14,11 @@
       <div v-else-if="feedbackMessages && feedbackMessages.length === 1">
         {{ feedbackMessages[0] }}
       </div>
-    </template>
-    <linkify slot="description">{{ description }}</linkify>
-  </b-form-group>
+    </div>
+    <p v-if="description" class="text-sm text-muted-foreground">
+      <linkify>{{ description }}</linkify>
+    </p>
+  </div>
 </template>
 
 <script>
@@ -27,24 +28,24 @@ export default {
   props: {
     label: {
       type: String,
-      required: true
+      required: true,
     },
     labelFor: {
       type: String,
-      required: true
+      required: true,
     },
     state: {
-      type: Boolean
+      type: Boolean,
     },
     feedbackMessages: {
-      type: Array
+      type: Array,
     },
     description: {
-      type: String
-    }
+      type: String,
+    },
   },
   components: {
-    linkify: components.Linkify
-  }
+    linkify: components.Linkify,
+  },
 };
 </script>

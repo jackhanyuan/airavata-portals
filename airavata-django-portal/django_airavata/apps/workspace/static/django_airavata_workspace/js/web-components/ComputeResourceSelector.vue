@@ -1,24 +1,34 @@
 <template>
-  <b-form-group label="Compute Resource" label-for="compute-resource">
-    <b-form-select
+  <div class="space-y-1.5">
+    <label
+      for="compute-resource"
+      class="text-sm leading-none font-medium select-none"
+      >Compute Resource</label
+    >
+    <select
       id="compute-resource"
       v-model="resourceHostId"
-      :options="computeResourceOptions"
       required
-      @input="computeResourceChanged"
-      @input.native.stop
       :disabled="disabled || computeResourceOptions.length === 0"
+      :class="nativeSelectClass"
+      @change="computeResourceChanged"
     >
-      <template slot="first">
-        <option :value="null" disabled>Select a Compute Resource</option>
-      </template>
-    </b-form-select>
-  </b-form-group>
+      <option :value="null" disabled>Select a Compute Resource</option>
+      <option
+        v-for="option in computeResourceOptions"
+        :key="option.value"
+        :value="option.value"
+      >
+        {{ option.text }}
+      </option>
+    </select>
+  </div>
 </template>
 
 <script>
-import store from "./store";
-import { mapGetters } from "vuex";
+import { mapState } from "pinia";
+import { useExperimentStore } from "./store";
+import { NATIVE_SELECT_CLASS } from "../lib/utils";
 
 export default {
   name: "compute-resource-selector",
@@ -37,16 +47,20 @@ export default {
       default: false,
     },
   },
-  store: store,
   data() {
     return {
       resourceHostId: this.value,
     };
   },
   created() {
-    this.$store.dispatch("loadComputeResourceNames");
+    useExperimentStore().loadComputeResourceNames();
   },
   computed: {
+    ...mapState(useExperimentStore, ["computeResourceNames"]),
+    nativeSelectClass() {
+      // Native option-driven select styled to match a shadcn <Input>.
+      return NATIVE_SELECT_CLASS;
+    },
     computeResourceOptions: function () {
       const computeResourceIds = Object.keys(this.computeResourceNames).filter(
         (crid) => {
@@ -55,7 +69,7 @@ export default {
           } else {
             return true;
           }
-        }
+        },
       );
       const computeResourceOptions = computeResourceIds.map((computeHostId) => {
         return {
@@ -69,7 +83,6 @@ export default {
       computeResourceOptions.sort((a, b) => a.text.localeCompare(b.text));
       return computeResourceOptions;
     },
-    ...mapGetters(["computeResourceNames"]),
   },
   methods: {
     computeResourceChanged() {

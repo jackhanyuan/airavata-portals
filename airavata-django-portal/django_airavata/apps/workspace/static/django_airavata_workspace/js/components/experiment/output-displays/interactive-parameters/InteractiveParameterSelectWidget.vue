@@ -1,12 +1,22 @@
 <template>
-  <b-form-select
+  <select
     :value="value"
-    :options="options"
-    @input="$emit('input', $event)"
-  />
+    :class="nativeSelectClass"
+    @change="$emit('input', $event.target.value)"
+  >
+    <option
+      v-for="option in normalizedOptions"
+      :key="option.value"
+      :value="option.value"
+    >
+      {{ option.text }}
+    </option>
+  </select>
 </template>
 
 <script>
+import { NATIVE_SELECT_CLASS } from "../../../../lib/utils";
+
 export default {
   name: "interactive-parameter-select-widget",
   props: {
@@ -20,8 +30,19 @@ export default {
     },
   },
   computed: {
+    nativeSelectClass() {
+      // Native option-driven select styled to match a shadcn <Input>.
+      return NATIVE_SELECT_CLASS;
+    },
     options() {
       return this.parameter.options;
+    },
+    normalizedOptions() {
+      return (this.parameter.options || []).map((option) =>
+        option !== null && typeof option === "object"
+          ? { value: option.value, text: option.text ?? option.value }
+          : { value: option, text: option },
+      );
     },
   },
 };

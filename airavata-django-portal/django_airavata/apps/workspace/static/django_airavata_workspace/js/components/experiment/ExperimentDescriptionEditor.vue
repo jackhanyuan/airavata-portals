@@ -1,36 +1,38 @@
 <template>
-  <b-form-group
-    v-if="isEditing"
-    label="Experiment Description"
-    label-for="experiment-description"
-  >
-    <b-form-textarea
+  <div v-if="isEditing" class="space-y-1.5">
+    <Label for="experiment-description">Experiment Description</Label>
+    <Textarea
       id="experiment-description"
       v-model="data"
       rows="3"
       ref="description"
       maxlength="255"
-    ></b-form-textarea>
-    <div class="mt-1">
-      <b-button variant="success" size="sm" @click="toggleEditing"
-        >Save description</b-button
+    />
+    <div class="mt-1 flex items-center gap-2">
+      <Button size="sm" variant="default" @click="toggleEditing"
+        >Save description</Button
       >
-      <b-link
-        @click="cancelEditing"
+      <Button
+        size="sm"
+        variant="ghost"
         title="Cancel editing"
-        class="text-secondary ml-3"
+        @click="cancelEditing"
       >
-        <i class="fas fa-times"></i>
+        <X class="size-4" />
         <span class="sr-only">Cancel editing</span>
-      </b-link>
+      </Button>
     </div>
-  </b-form-group>
+  </div>
   <div v-else class="mb-3">
-    <b-link @click="startEditing" class="d-inline-block text-body mb-1">
-      <i class="fas fa-align-left"></i>
+    <a
+      href="#"
+      @click.prevent="startEditing"
+      class="mb-1 inline-flex items-center gap-1 text-foreground"
+    >
+      <AlignLeft class="size-4" />
       <span v-if="data"> Edit the description</span>
       <span v-else> Add a description</span>
-    </b-link>
+    </a>
     <div v-if="data" class="ml-3">
       {{ data }}
     </div>
@@ -38,10 +40,12 @@
 </template>
 
 <script>
+import { AlignLeft, X } from "@lucide/vue";
 import { mixins } from "django-airavata-common-ui";
 
 export default {
   name: "experiment-description-editor",
+  components: { AlignLeft, X },
   mixins: [mixins.VModelMixin],
   data() {
     return {
@@ -56,7 +60,7 @@ export default {
     startEditing() {
       this.originalValue = this.data;
       this.isEditing = true;
-      this.$nextTick(() => this.$refs.description.focus());
+      this.$nextTick(() => this.$refs.description.$el.focus());
     },
     cancelEditing() {
       this.data = this.originalValue;

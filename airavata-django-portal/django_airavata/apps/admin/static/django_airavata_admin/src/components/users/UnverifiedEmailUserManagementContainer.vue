@@ -1,44 +1,59 @@
 <template>
   <div>
-    <div class="row">
-      <div class="col">
-        <div class="card">
-          <div class="card-body">
-            <b-table hover :fields="fields" :items="items" :fixed="true">
-              <template slot="cell(creation_time)" slot-scope="data">
-                <human-date :date="data.value" />
-              </template>
-              <template slot="cell(action)" slot-scope="data">
-                <b-button
-                  v-if="data.item.user_has_write_access"
-                  @click="toggleDetails(data)"
-                >
-                  Edit
-                </b-button>
-              </template>
-              <template slot="row-details" slot-scope="data">
-                <enable-user-panel
-                  v-if="!data.item.enabled && !data.item.email_verified"
-                  :username="data.item.user_id"
-                  :email="data.item.email"
-                  @enable-user="enableUser"
-                />
-                <delete-user-panel
-                  v-if="!data.item.enabled && !data.item.email_verified"
-                  :username="data.item.user_id"
-                  @delete-user="deleteUser"
-                />
-              </template>
-            </b-table>
-            <pager
-              v-bind:paginator="usersPaginator"
-              v-on:next="next"
-              v-on:previous="previous"
-            ></pager>
-          </div>
-        </div>
-      </div>
-    </div>
+    <Card>
+      <CardContent>
+        <Table class="table-fixed">
+          <TableHeader>
+            <TableRow>
+              <TableHead v-for="field in fields" :key="field.key">
+                {{ field.label }}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <template v-for="item in items" :key="item.user_id">
+              <TableRow>
+                <TableCell>{{ item.first_name }}</TableCell>
+                <TableCell>{{ item.last_name }}</TableCell>
+                <TableCell>{{ item.user_id }}</TableCell>
+                <TableCell>{{ item.email }}</TableCell>
+                <TableCell>{{ item.email_verified }}</TableCell>
+                <TableCell><human-date :date="item.creation_time" /></TableCell>
+                <TableCell>
+                  <Button
+                    v-if="item.user_has_write_access"
+                    variant="outline"
+                    @click="toggleDetails(item)"
+                  >
+                    Edit
+                  </Button>
+                </TableCell>
+              </TableRow>
+              <TableRow v-if="isExpanded(item)">
+                <TableCell :colspan="fields.length">
+                  <enable-user-panel
+                    v-if="!item.enabled && !item.email_verified"
+                    :username="item.user_id"
+                    :email="item.email"
+                    @enable-user="enableUser"
+                  />
+                  <delete-user-panel
+                    v-if="!item.enabled && !item.email_verified"
+                    :username="item.user_id"
+                    @delete-user="deleteUser"
+                  />
+                </TableCell>
+              </TableRow>
+            </template>
+          </TableBody>
+        </Table>
+        <pager
+          v-bind:paginator="usersPaginator"
+          v-on:next="next"
+          v-on:previous="previous"
+        ></pager>
+      </CardContent>
+    </Card>
   </div>
 </template>
 <script>
@@ -63,7 +78,7 @@ export default {
   },
   created() {
     services.UnverifiedEmailUserProfileService.list({ limit: 10 }).then(
-      (users) => (this.usersPaginator = users)
+      (users) => (this.usersPaginator = users),
     );
   },
   computed: {
@@ -112,12 +127,12 @@ export default {
     },
     enableUser(username) {
       services.IAMUserProfileService.enable({ lookup: username }).finally(() =>
-        this.loadUnverifiedEmailUsers()
+        this.loadUnverifiedEmailUsers(),
       );
     },
     deleteUser(username) {
       services.IAMUserProfileService.delete({ lookup: username }).finally(() =>
-        this.loadUnverifiedEmailUsers()
+        this.loadUnverifiedEmailUsers(),
       );
     },
     loadUnverifiedEmailUsers() {
@@ -125,11 +140,11 @@ export default {
         limit: 10,
       }).then((users) => (this.usersPaginator = users));
     },
-    toggleDetails(row) {
-      row.toggleDetails();
-      this.showingDetails[row.item.user_id] = !this.showingDetails[
-        row.item.user_id
-      ];
+    isExpanded(item) {
+      return Boolean(this.showingDetails[item.user_id]);
+    },
+    toggleDetails(item) {
+      this.showingDetails[item.user_id] = !this.showingDetails[item.user_id];
     },
   },
 };

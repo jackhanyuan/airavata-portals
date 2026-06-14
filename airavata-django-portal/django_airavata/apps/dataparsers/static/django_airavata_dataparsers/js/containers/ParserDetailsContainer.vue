@@ -1,27 +1,21 @@
 <template>
-  <div>
-    <div class="row">
-      <div class="col">
-        <h1 class="h4 mb-4">
-          <div>{{ parserId }}</div>
-        </h1>
-      </div>
-    </div>
-    <div class="row" v-if="parser">
-      <div class="col">
-        <b-form-group label="Image Name" label-for="image-name">
-          <b-form-input
-            id="image-name"
-            type="text"
-            v-model="parser.image_name"
-          />
-        </b-form-group>
-      </div>
-    </div>
-  </div>
+  <main-layout
+    title="Parser Details"
+    subtitle="View the configuration for this data parser."
+  >
+    <Card v-if="parser">
+      <CardContent>
+        <div class="space-y-1.5">
+          <Label for="image-name">Image Name</Label>
+          <Input id="image-name" type="text" v-model="parser.image_name" />
+        </div>
+      </CardContent>
+    </Card>
+  </main-layout>
 </template>
 
 <script>
+import MainLayout from "django-airavata-common-ui/js/components/MainLayout.vue";
 import { services } from "django-airavata-api";
 
 export default {
@@ -36,6 +30,9 @@ export default {
     return {
       parser: null,
     };
+  },
+  components: {
+    "main-layout": MainLayout,
   },
   created() {
     services.ParserService.retrieve({

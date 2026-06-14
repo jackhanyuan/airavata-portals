@@ -1,30 +1,27 @@
 <template>
   <div>
     <pga-link />
-    <div class="row">
-      <div class="col">
-        <h1 class="h4 mb-4">Dashboard</h1>
-        <workspace-notices-management-container/>
-        <h2 class="h6 mb-2 text-uppercase text-muted">Applications</h2>
-      </div>
+    <div>
+      <workspace-notices-management-container />
+      <h2 class="mb-2 text-sm font-semibold text-muted-foreground uppercase">
+        Applications
+      </h2>
     </div>
-    <div class="row" v-if="showNewUserMessage">
-      <div class="col">
-        <b-alert variant="info" show
+    <div v-if="showNewUserMessage" class="mb-4">
+      <Alert>
+        <AlertDescription
           >Welcome {{ userProfile.first_name }} {{ userProfile.last_name }}! You
           currently don't have access to run any applications but the
           administrator of this gateway has been notified and will be in contact
-          to grant you the appropriate privileges.</b-alert
+          to grant you the appropriate privileges.</AlertDescription
         >
-      </div>
+      </Alert>
     </div>
     <template v-if="favoriteApplicationsData.length > 0">
-      <div class="row">
-        <div class="col">
-          <h1 class="h5 mb-2">Favorites</h1>
-        </div>
+      <div>
+        <h2 class="mb-2 text-lg font-semibold">Favorites</h2>
       </div>
-      <div class="row">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <application-card
           v-for="item in favoriteApplicationsData"
           v-bind:appModule="item.appModule"
@@ -35,18 +32,18 @@
           @unfavorite="markNotFavorite(item.appModule)"
           ref="favoriteApplicationCards"
         >
-          <favorite-toggle
-            slot="card-actions"
-            :favorite="true"
-            class="card-link"
-            @favorite="markFavorite(item.appModule)"
-            @unfavorite="markNotFavorite(item.appModule)"
-          />
+          <template #card-actions>
+            <favorite-toggle
+              :favorite="true"
+              @favorite="markFavorite(item.appModule)"
+              @unfavorite="markNotFavorite(item.appModule)"
+            />
+          </template>
         </application-card>
       </div>
-      <hr />
+      <Separator class="my-4" />
     </template>
-    <div class="row">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <application-card
         v-for="item in nonFavoriteApplicationsData"
         v-bind:appModule="item.appModule"
@@ -56,13 +53,13 @@
         @favorite="markFavorite(item.appModule)"
         @unfavorite="markNotFavorite(item.appModule)"
       >
-        <favorite-toggle
-          slot="card-actions"
-          :favorite="false"
-          class="card-link"
-          @favorite="markFavorite(item.appModule)"
-          @unfavorite="markNotFavorite(item.appModule)"
-        />
+        <template #card-actions>
+          <favorite-toggle
+            :favorite="false"
+            @favorite="markFavorite(item.appModule)"
+            @unfavorite="markNotFavorite(item.appModule)"
+          />
+        </template>
       </application-card>
     </div>
   </div>
@@ -101,12 +98,12 @@ export default {
       })
         .then(() => {
           return services.WorkspacePreferencesService.get().then(
-            (prefs) => (this.workspacePreferences = prefs)
+            (prefs) => (this.workspacePreferences = prefs),
           );
         })
         .then(() => {
           const index = this.favoriteApplicationsData.findIndex(
-            (data) => data.appModule.app_module_id === appModule.app_module_id
+            (data) => data.appModule.app_module_id === appModule.app_module_id,
           );
           this.$nextTick(() => {
             this.$refs.favoriteApplicationCards[index].$el.scrollIntoView({
@@ -121,7 +118,7 @@ export default {
         lookup: appModule.app_module_id,
       }).then(() => {
         return services.WorkspacePreferencesService.get().then(
-          (prefs) => (this.workspacePreferences = prefs)
+          (prefs) => (this.workspacePreferences = prefs),
         );
       });
     },
@@ -160,13 +157,13 @@ export default {
     favoriteApplicationsData() {
       return this.allApplicationData.filter(
         (app) =>
-          this.favoriteApplicationIds.indexOf(app.appModule.app_module_id) >= 0
+          this.favoriteApplicationIds.indexOf(app.appModule.app_module_id) >= 0,
       );
     },
     nonFavoriteApplicationsData() {
       return this.allApplicationData.filter(
         (app) =>
-          this.favoriteApplicationIds.indexOf(app.appModule.app_module_id) < 0
+          this.favoriteApplicationIds.indexOf(app.appModule.app_module_id) < 0,
       );
     },
     favoriteApplicationIds() {
@@ -184,17 +181,17 @@ export default {
   },
   beforeMount: function () {
     services.ApplicationModuleService.list().then(
-      (result) => (this.accessibleAppModules = result)
+      (result) => (this.accessibleAppModules = result),
     );
     services.UserProfileService.retrieve({
       lookup: session.Session.username,
     }).then((userProfile) => (this.userProfile = userProfile));
     // Load all application, including ones that aren't accessible by this user
     services.ApplicationModuleService.listAll().then(
-      (result) => (this.allApplicationModules = result)
+      (result) => (this.allApplicationModules = result),
     );
     services.WorkspacePreferencesService.get().then(
-      (prefs) => (this.workspacePreferences = prefs)
+      (prefs) => (this.workspacePreferences = prefs),
     );
   },
 };

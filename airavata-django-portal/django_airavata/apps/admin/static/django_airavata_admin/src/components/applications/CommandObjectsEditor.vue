@@ -1,39 +1,45 @@
 <template>
-  <b-card :title="title" title-tag="h5">
-    <b-input-group
-      v-for="commandObject in data"
-      :key="commandObject.key"
-      class="mb-1"
-    >
-      <b-form-input
-        type="text"
-        v-model="commandObject.command"
-        required
-        ref="commandObjectInputs"
-        :disabled="readonly"
-      />
-      <b-input-group-append v-if="!readonly">
-        <b-button
+  <Card>
+    <CardHeader>
+      <CardTitle>{{ title }}</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div
+        v-for="commandObject in data"
+        :key="commandObject.key"
+        class="mb-1 flex items-stretch gap-2"
+      >
+        <Input
+          type="text"
+          v-model="commandObject.command"
+          required
+          ref="commandObjectInputs"
+          :disabled="readonly"
+        />
+        <Button
+          v-if="!readonly"
           variant="secondary"
           @click="deleteCommandObject(commandObject)"
         >
-          <i class="fa fa-trash"></i>
+          <Trash2 class="size-4" />
           <span class="sr-only">Delete</span>
-        </b-button>
-      </b-input-group-append>
-    </b-input-group>
-    <b-button v-if="!readonly" variant="secondary" @click="addCommandObject">{{
-      addButtonLabel
-    }}</b-button>
-  </b-card>
+        </Button>
+      </div>
+      <Button v-if="!readonly" variant="secondary" @click="addCommandObject">{{
+        addButtonLabel
+      }}</Button>
+    </CardContent>
+  </Card>
 </template>
 
 <script>
+import { Trash2 } from "@lucide/vue";
 import { models } from "django-airavata-api";
 import { mixins } from "django-airavata-common-ui";
 
 export default {
   name: "command-objects-editor",
+  components: { Trash2 },
   mixins: [mixins.VModelMixin],
   props: {
     value: {
@@ -61,7 +67,7 @@ export default {
       this.$nextTick(() =>
         this.$refs.commandObjectInputs[
           this.$refs.commandObjectInputs.length - 1
-        ].focus()
+        ].$el.focus(),
       );
     },
     deleteCommandObject(commandObject) {

@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue2";
+import vue from "@vitejs/plugin-vue";
+import tailwindcss from "@tailwindcss/vite";
 
 const publicPath = "/static/django_airavata_workspace/dist/";
 const jsDir = resolve(__dirname, "static/django_airavata_workspace/js");
@@ -63,13 +64,37 @@ const entry = (name) => resolve(jsDir, name);
 
 export default defineConfig({
   base: publicPath,
-  plugins: [vue(), djangoWebpackStats()],
+  plugins: [vue(), tailwindcss(), djangoWebpackStats()],
   resolve: {
     // `.vue` so extensionless imports resolve like they did under Vue CLI.
     extensions: [".mjs", ".js", ".mts", ".ts", ".jsx", ".tsx", ".json", ".vue"],
-  },
-  css: {
-    preprocessorOptions: { scss: { quietDeps: true } },
+    // This app links to common/api/plugin-api (already Vue 3). reka-ui (the
+    // shadcn-vue primitive layer) is provided transitively via the common
+    // package; dedupe so a single copy of these singletons is used and component
+    // instances / Pinia stores / reka-ui module-level state stay shared.
+    dedupe: ["vue", "reka-ui", "pinia", "vue-router"],
+    alias: [
+      // `@` -> this app's js dir, matching the other migrated apps.
+      { find: "@", replacement: jsDir },
+      // The linked common package's Uppy.vue (pulled in via the `components`
+      // barrel) imports the Uppy CSS via the `dist/` path, which the @uppy/*
+      // packages' `exports` field does not expose (only `css/style.min.css` is).
+      // Rewrite those deep imports to the exports-allowed path so the build's
+      // stricter resolver (rolldown) can resolve them. Behavior is identical
+      // (same stylesheet); this is purely a resolution shim.
+      {
+        find: "@uppy/core/dist/style.min.css",
+        replacement: "@uppy/core/css/style.min.css",
+      },
+      {
+        find: "@uppy/status-bar/dist/style.min.css",
+        replacement: "@uppy/status-bar/css/style.min.css",
+      },
+      {
+        find: "@uppy/drag-drop/dist/style.min.css",
+        replacement: "@uppy/drag-drop/css/style.min.css",
+      },
+    ],
   },
   build: {
     outDir: "static/django_airavata_workspace/dist",
@@ -91,7 +116,9 @@ export default defineConfig({
         chunkFileNames: "js/[name].js",
         assetFileNames: (info) => {
           const name = info.names?.[0] ?? info.name ?? "";
-          return name.endsWith(".css") ? "css/[name][extname]" : "assets/[name][extname]";
+          return name.endsWith(".css")
+            ? "css/[name][extname]"
+            : "assets/[name][extname]";
         },
       },
     },

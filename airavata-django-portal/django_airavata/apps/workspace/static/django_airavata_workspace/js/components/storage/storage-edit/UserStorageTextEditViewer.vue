@@ -14,11 +14,12 @@
           :data-product-uri="dataProductUri"
           :file-name="fileName"
         />
-        <b-button
+        <Button
+          variant="outline"
           v-if="editAvailable && !readOnly"
           :disabled="saved"
           @click="fileContentChanged"
-          >Save</b-button
+          >Save</Button
         >
       </div>
     </div>
@@ -69,7 +70,7 @@ export default {
   mounted() {
     this.setFileContent();
   },
-  destroyed() {
+  unmounted() {
     // this.editor is created only when the file is small enough to be
     // previewed/edited in browser
     if (this.editor) {
@@ -97,7 +98,7 @@ export default {
           `/api/data-products?product-uri=${this.dataProductUri}`,
           {
             fileContentText: changedFileContent,
-          }
+          },
         ).then(() => {
           this.$emit("file-content-changed", changedFileContent);
         });

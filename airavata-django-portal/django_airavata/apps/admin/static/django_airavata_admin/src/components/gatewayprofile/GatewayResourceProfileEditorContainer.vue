@@ -1,56 +1,55 @@
 <template>
-  <div>
-    <div class="row">
-      <div class="col">
-        <div class="card">
-          <div class="card-body">
-            <gateway-resource-profile-editor
-              v-if="gatewayResourceProfile"
-              v-model="gatewayResourceProfile"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col">
-        <div class="card">
-          <div class="card-body">
-            <storage-preference-list
-              v-if="gatewayResourceProfile"
-              :storagePreferences="gatewayResourceProfile.storage_preferences"
-              :default-credential-store-token="
-                gatewayResourceProfile.credential_store_token
-              "
-              @updated="updatedStoragePreference"
-              @added="addedStoragePreference"
-              @delete="deleteStoragePreference"
-              :readonly="!gatewayResourceProfile.user_has_write_access"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-    <div
-      class="row"
-      v-if="gatewayResourceProfile && gatewayResourceProfile.user_has_write_access"
+  <main-layout
+    title="Gateway Resource Profile"
+    subtitle="Configure gateway-wide storage and resource preferences."
+  >
+    <template
+      v-slot:actions
+      v-if="
+        gatewayResourceProfile && gatewayResourceProfile.user_has_write_access
+      "
     >
-      <div class="col">
-        <b-button variant="primary" @click="save"> Save </b-button>
-        <b-button variant="secondary" @click="cancel"> Cancel </b-button>
-      </div>
+      <Button variant="secondary" @click="cancel"> Cancel </Button>
+      <Button @click="save"> Save </Button>
+    </template>
+    <div class="space-y-4">
+      <Card>
+        <CardContent>
+          <gateway-resource-profile-editor
+            v-if="gatewayResourceProfile"
+            v-model="gatewayResourceProfile"
+          />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent>
+          <storage-preference-list
+            v-if="gatewayResourceProfile"
+            :storagePreferences="gatewayResourceProfile.storage_preferences"
+            :default-credential-store-token="
+              gatewayResourceProfile.credential_store_token
+            "
+            @updated="updatedStoragePreference"
+            @added="addedStoragePreference"
+            @delete="deleteStoragePreference"
+            :readonly="!gatewayResourceProfile.user_has_write_access"
+          />
+        </CardContent>
+      </Card>
     </div>
-  </div>
+  </main-layout>
 </template>
 
 <script>
 import { services } from "django-airavata-api";
+import { components } from "django-airavata-common-ui";
 import GatewayResourceProfileEditor from "./GatewayResourceProfileEditor.vue";
 import StoragePreferenceList from "./StoragePreferenceList.vue";
 
 export default {
   name: "gateway-resource-profile-editor-container",
   components: {
+    "main-layout": components.MainLayout,
     GatewayResourceProfileEditor,
     StoragePreferenceList,
   },
@@ -81,12 +80,13 @@ export default {
     updatedStoragePreference(updatedStoragePreference) {
       const index = this.gatewayResourceProfile.storage_preferences.findIndex(
         (sp) =>
-          sp.storage_resource_id === updatedStoragePreference.storage_resource_id
+          sp.storage_resource_id ===
+          updatedStoragePreference.storage_resource_id,
       );
       this.gatewayResourceProfile.storage_preferences.splice(
         index,
         1,
-        updatedStoragePreference
+        updatedStoragePreference,
       );
     },
     addedStoragePreference(newStoragePreference) {
@@ -101,7 +101,7 @@ export default {
         lookup: storageResourceId,
       }).then(() => {
         const index = this.gatewayResourceProfile.storage_preferences.findIndex(
-          (sp) => sp.storage_resource_id === storageResourceId
+          (sp) => sp.storage_resource_id === storageResourceId,
         );
         this.gatewayResourceProfile.storage_preferences.splice(index, 1);
       });

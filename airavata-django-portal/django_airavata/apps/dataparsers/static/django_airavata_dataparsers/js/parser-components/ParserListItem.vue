@@ -1,31 +1,31 @@
 <template>
-  <tr>
-    <td>{{ parser.id }}</td>
-    <td>{{ parser.image_name }}</td>
-    <td>{{ parser.execution_command }}</td>
-    <td>
-      <a
-        class="action-link"
+  <TableRow>
+    <TableCell>{{ parser.id }}</TableCell>
+    <TableCell>{{ parser.image_name }}</TableCell>
+    <TableCell>{{ parser.execution_command }}</TableCell>
+    <TableCell>
+      <Button
+        as="a"
+        variant="link"
+        size="sm"
         :href="'/dataparsers/edit/' + encodeURIComponent(parser.id) + '/'"
       >
-        Edit <i class="fa fa-edit"></i>
-      </a>
-    </td>
-  </tr>
+        Edit <Pencil class="size-4" aria-hidden="true" />
+      </Button>
+    </TableCell>
+  </TableRow>
 </template>
 
 <script>
+import { Pencil } from "@lucide/vue";
+
 export default {
   name: "parser-list-item",
+  components: {
+    Pencil,
+  },
   data() {
     return {
-      show: false,
-      deleteButtonVariant: "link",
-      yesButtonVariant: "danger",
-      noButtonVariant: "secondary",
-      headerBgVariant: "danger",
-      bodyBgVariant: "light",
-      headerTextVariant: "light",
       deleting: false,
     };
   },
@@ -34,5 +34,3 @@ export default {
   methods: {},
 };
 </script>
-
-<style></style>

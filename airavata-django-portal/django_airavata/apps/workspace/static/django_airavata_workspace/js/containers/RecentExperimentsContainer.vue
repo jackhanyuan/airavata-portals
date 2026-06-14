@@ -5,18 +5,19 @@
       :view-all-url="viewAllExperiments"
     />
     <sidebar-feed :feed-items="feedItems">
-      <template slot="description" slot-scope="slotProps">
+      <template #description="slotProps">
         <experiment-status-badge :status-name="slotProps.feedItem.statusName" />
-        <i
+        <RefreshCw
           v-if="slotProps.feedItem.isProgressing"
-          class="fa fa-sync-alt fa-spin ml-1"
-        ></i>
+          class="ml-1 inline size-4 animate-spin"
+        />
       </template>
     </sidebar-feed>
   </sidebar>
 </template>
 
 <script>
+import { RefreshCw } from "@lucide/vue";
 import urls from "../utils/urls";
 import { errors, models, services, utils } from "django-airavata-api";
 import { components } from "django-airavata-common-ui";
@@ -27,6 +28,7 @@ export default {
     username: String,
   },
   components: {
+    RefreshCw,
     sidebar: components.Sidebar,
     "sidebar-header": components.SidebarHeader,
     "sidebar-feed": components.SidebarFeed,
@@ -43,7 +45,7 @@ export default {
             function () {
               this.pollExperiments();
             }.bind(this),
-            this.refreshDelay
+            this.refreshDelay,
           );
         })
         .catch(() => {
@@ -61,7 +63,7 @@ export default {
         {
           showSpinner: false,
           ignoreErrors: true,
-        }
+        },
       ).then((experiments) => {
         this.feedItems = experiments.results.map((e) => {
           return {
@@ -84,7 +86,7 @@ export default {
         Promise.all(
           Object.keys(unloadedInterfaceIds).map((interfaceId) => {
             return this.loadApplicationInterface(interfaceId);
-          })
+          }),
         ).then(() => {
           this.populateApplicationNames();
         });
@@ -98,7 +100,7 @@ export default {
         {
           showSpinner: false,
           ignoreErrors: true,
-        }
+        },
       )
         .then((applicationInterface) => {
           this.applicationInterfaces[interfaceId] = applicationInterface;
@@ -121,9 +123,8 @@ export default {
             feedItem.interfaceId in this.applicationInterfaces &&
             this.applicationInterfaces[feedItem.interfaceId]
           ) {
-            feedItem.type = this.applicationInterfaces[
-              feedItem.interfaceId
-            ].application_name;
+            feedItem.type =
+              this.applicationInterfaces[feedItem.interfaceId].application_name;
           }
         });
     },

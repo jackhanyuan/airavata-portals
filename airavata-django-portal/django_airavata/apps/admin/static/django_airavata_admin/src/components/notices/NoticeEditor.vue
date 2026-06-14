@@ -1,154 +1,115 @@
 <template>
   <div>
-    <div class="d-flex">
+    <div class="flex">
       <slot name="title"> </slot>
     </div>
-    <b-form @input="onUserInput" novalidate>
-      <b-form-group
-        label="Notice Title"
-        label-for="notice-title"
-        :invalid-feedback="getValidationFeedback('title')"
-        :state="getValidationState('title')"
-      >
-        <b-form-input
+    <form class="space-y-4" @input="onUserInput" novalidate>
+      <div class="space-y-1.5">
+        <Label for="notice-title">Notice Title</Label>
+        <Input
           id="notice-title"
           type="text"
           v-model="data.title"
           required
           placeholder="Notice Title"
-          :state="getValidationState('title')"
-        ></b-form-input>
-      </b-form-group>
+          :aria-invalid="getValidationState('title') === false"
+        />
+        <p
+          v-if="getValidationState('title') === false"
+          class="text-sm text-destructive"
+        >
+          {{ getValidationFeedback("title") }}
+        </p>
+      </div>
 
-      <b-form-group
-        label="Notice Message"
-        label-for="notice-message"
-        :invalid-feedback="getValidationFeedback('notificationMessage')"
-        :state="getValidationState('notificationMessage')"
-      >
-        <b-form-textarea
+      <div class="space-y-1.5">
+        <Label for="notice-message">Notice Message</Label>
+        <Textarea
           id="notice-message"
-          type="text"
           v-model="data.notification_message"
           required
           placeholder="Notice Message"
-          :state="getValidationState('notificationMessage')"
+          :aria-invalid="getValidationState('notificationMessage') === false"
           :rows="3"
-        ></b-form-textarea>
-      </b-form-group>
+        ></Textarea>
+        <p
+          v-if="getValidationState('notificationMessage') === false"
+          class="text-sm text-destructive"
+        >
+          {{ getValidationFeedback("notificationMessage") }}
+        </p>
+      </div>
 
-      <b-form-group label="Publish Date" label-for="publish-date">
-        <datetime
-          type="datetime"
+      <div class="space-y-1.5">
+        <Label for="publish-date">Publish Date</Label>
+        <flat-pickr
+          id="publish-date"
           v-model="inputPublishedTime"
-          input-class="my-class"
-          value-zone="UTC"
-          :format="{
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            timeZoneName: 'short',
-          }"
-          :phrases="{ ok: 'Continue', cancel: 'Exit' }"
-          :hour-step="1"
-          :minute-step="5"
-          :min-datetime="today"
-          :week-start="7"
-          use12-hour
-          auto
-        ></datetime>
-      </b-form-group>
+          class="border-input focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-[250px] rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-3"
+          :config="publishDateConfig"
+        />
+      </div>
 
-      <b-form-group label="Expiration Date" label-for="expiration-date">
-        <datetime
-          type="datetime"
+      <div class="space-y-1.5">
+        <Label for="expiration-date">Expiration Date</Label>
+        <flat-pickr
+          id="expiration-date"
           v-model="inputExpirationTime"
-          input-class="my-class"
-          value-zone="UTC"
-          :format="{
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            timeZoneName: 'short',
-          }"
-          :phrases="{ ok: 'Continue', cancel: 'Exit' }"
-          :hour-step="1"
-          :minute-step="5"
-          :min-datetime="inputPublishedTime"
-          :week-start="7"
-          use12-hour
-          auto
-        ></datetime>
-      </b-form-group>
+          class="border-input focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-[250px] rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-3"
+          :config="expirationDateConfig"
+        />
+      </div>
 
-      <b-form-group
-        label="Priority"
-        label-for="priority"
-        :invalid-feedback="getValidationFeedback('priority')"
-        :state="getValidationState('priority')"
-      >
-        <b-form-select
+      <div class="space-y-1.5">
+        <Label for="priority">Priority</Label>
+        <select
           id="priority"
           v-model="data.priority"
-          :options="select.options"
-          :state="getValidationState('priority')"
+          class="border-input focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:ring-3"
         >
-        </b-form-select>
-      </b-form-group>
+          <option
+            v-for="opt in select.options"
+            :key="opt.value"
+            :value="opt.value"
+          >
+            {{ opt.text }}
+          </option>
+        </select>
+        <p
+          v-if="getValidationState('priority') === false"
+          class="text-sm text-destructive"
+        >
+          {{ getValidationFeedback("priority") }}
+        </p>
+      </div>
 
-      <b-form-group
-        label="Show In Dashboard"
-        label-for="showInDashboard"
-        :state="getValidationState('show_in_dashboard')"
-      >
-        <b-form-checkbox
-          id="showInDashboard"
-          v-model="data.show_in_dashboard"
-          :state="getValidationState('show_in_dashboard')"
-        >
-        </b-form-checkbox>
-      </b-form-group>
+      <div class="space-y-1.5">
+        <Label for="showInDashboard">Show In Dashboard</Label>
+        <div>
+          <Checkbox id="showInDashboard" v-model="data.show_in_dashboard" />
+        </div>
+      </div>
 
       <template v-if="!editNotification">
-        <div class="row">
-          <div id="col-exp-buttons" class="col">
-            <b-button
-              variant="success"
-              @click="saveNewNotice"
-              :disabled="isSaveDisabled"
-            >
-              Save
-            </b-button>
-            <b-button variant="primary" @click="cancelNewNotice">
-              Cancel
-            </b-button>
-          </div>
+        <div class="flex gap-2">
+          <Button @click="saveNewNotice" :disabled="isSaveDisabled">
+            Save
+          </Button>
+          <Button variant="secondary" @click="cancelNewNotice"> Cancel </Button>
         </div>
       </template>
-    </b-form>
+    </form>
   </div>
 </template>
-<style>
-.my-class {
-  width: 250px;
-}
-</style>
 <script>
 import { models } from "django-airavata-api";
 import { mixins, utils } from "django-airavata-common-ui";
-import { Datetime } from "vue-datetime";
 import moment from "moment";
-import "vue-datetime/dist/vue-datetime.css";
 
 export default {
   name: "notice-editor",
-  components: {
-    datetime: Datetime,
-  },
+  // <flat-pickr> is registered globally in main.js (vue-flatpickr-component),
+  // replacing the Vue 2-only vue-datetime <datetime> picker.
   mixins: [mixins.VModelMixin],
   props: {
     value: {
@@ -161,18 +122,20 @@ export default {
     if (this.value.notification_id != null) {
       this.editNotification = true;
       this.inputPublishedTime = new moment(
-        this.value.published_time.toISOString()
+        this.value.published_time.toISOString(),
       )
         .utc()
         .format();
       this.inputExpirationTime = new moment(
-        this.value.expiration_time.toISOString()
+        this.value.expiration_time.toISOString(),
       )
         .utc()
         .format();
       this.data.priority = this.value.priority.name;
       this.data.show_in_dashboard = this.value.show_in_dashboard;
-      this.today = new moment(this.value.expiration_time.toISOString()).format();
+      this.today = new moment(
+        this.value.expiration_time.toISOString(),
+      ).format();
     }
   },
   data() {
@@ -199,6 +162,30 @@ export default {
     },
     isSaveDisabled: function () {
       return !this.valid;
+    },
+    // flatpickr datetime config. dateFormat "Z" emits an ISO-8601 string so the
+    // v-model value stays an ISO string like vue-datetime did.
+    publishDateConfig() {
+      return {
+        enableTime: true,
+        dateFormat: "Z",
+        altInput: true,
+        altFormat: "F j, Y h:i K",
+        minuteIncrement: 5,
+        time_24hr: false,
+        minDate: this.today,
+      };
+    },
+    expirationDateConfig() {
+      return {
+        enableTime: true,
+        dateFormat: "Z",
+        altInput: true,
+        altFormat: "F j, Y h:i K",
+        minuteIncrement: 5,
+        time_24hr: false,
+        minDate: this.inputPublishedTime,
+      };
     },
   },
   methods: {

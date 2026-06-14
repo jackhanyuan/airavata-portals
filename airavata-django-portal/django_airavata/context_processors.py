@@ -10,6 +10,9 @@ from django.core.cache import cache
 from django.urls import reverse
 
 from django_airavata.app_config import AiravataAppConfig
+from django_airavata.commons.dynamic_apps.context_processors import (
+    custom_app_registry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -209,3 +212,110 @@ def _get_app_nav(request, current_app):
 def google_analytics_tracking_id(request):
     """Put the Google Analytics tracking id into context."""
     return {"ga_tracking_id": getattr(settings, "GOOGLE_ANALYTICS_TRACKING_ID", None)}
+
+
+def _safe_reverse(name):
+    """Reverse a named URL, returning ``#`` if it can't be resolved."""
+    try:
+        return reverse(name)
+    except Exception:
+        return "#"
+
+
+def shell_data(request):
+    """Assemble the page-shell data the Vue app shell (AppShell.vue) renders.
+
+    The shell is a lightweight client: this composes the brand, primary nav,
+    app switcher, user menu, and unread notifications into one JSON-serializable
+    dict (rendered into base.html via ``json_script``). No business logic — it
+    reuses the registries the other context processors already build.
+    """
+    chrome = getattr(settings, "PORTAL_CHROME", {}) or {}
+    # The sidebar brand shows the platform name; gateways may override it via
+    # PORTAL_CHROME["title"]. (PORTAL_TITLE remains the full HTML <title>.)
+    title = chrome.get("title") or "Airavata"
+
+    app_registry = airavata_app_registry(request)
+    custom_registry = custom_app_registry(request)
+    current_airavata_app = app_registry.get("current_airavata_app")
+    current_custom_app = custom_registry.get("current_custom_app")
+
+    def _items_for_app(app, is_current):
+        items = []
+        for nav in _get_app_nav(request, app) or []:
+            items.append(
+                {
+                    "label": nav.get("label"),
+                    "icon": nav.get("icon"),
+                    "url": _safe_reverse(nav.get("url")),
+                    # _get_app_nav defaults items without `active_prefixes` to
+                    # active, so only trust the flag for the current app.
+                    "active": is_current and bool(nav.get("active")),
+                }
+            )
+        return items
+
+    # Grouped navigation: every app is a section header with all of its nav items
+    # shown beneath it (replacing the collapsed app-switcher). Only the current
+    # app's matching item is flagged active.
+    nav_groups = []
+    for app in app_registry.get("airavata_apps") or []:
+        is_current = app is current_airavata_app
+        items = _items_for_app(app, is_current)
+        if items:
+            nav_groups.append(
+                {
+                    "label": app.verbose_name,
+                    "icon": "fa " + app.fa_icon_class,
+                    "current": is_current,
+                    "items": items,
+                }
+            )
+    for app in custom_registry.get("custom_apps") or []:
+        is_current = (
+            current_custom_app is not None and app.label == current_custom_app.label
+        )
+        items = _items_for_app(app, is_current)
+        if items:
+            nav_groups.append(
+                {
+                    "label": app.verbose_name,
+                    "icon": "fa " + app.fa_icon_class,
+                    "current": is_current,
+                    "items": items,
+                }
+            )
+
+    data = {
+        "title": title,
+        "logoUrl": chrome.get("logo_url")
+            or static_logo_url(),
+        "logoBackgroundColor": chrome.get("logo_background_color"),
+        "menuLinks": chrome.get("user_menu_links") or [],
+        "navGroups": nav_groups,
+    }
+
+    if request.user.is_authenticated:
+        data["user"] = {
+            "first_name": getattr(request.user, "first_name", ""),
+            "last_name": getattr(request.user, "last_name", ""),
+            "username": getattr(request.user, "username", ""),
+            "email": getattr(request.user, "email", ""),
+        }
+        data["accountUrl"] = getattr(settings, "KEYCLOAK_ACCOUNT_CONSOLE_URL", "")
+        data["logoutUrl"] = _safe_reverse("django_airavata_auth:logout")
+        notifications = get_notifications(request)
+        data["notices"] = json.loads(notifications.get("notifications") or "[]")
+        data["unreadCount"] = notifications.get("unread_notifications", 0)
+
+    return {"shell_data": data}
+
+
+def static_logo_url():
+    """Default portal logo served from static files."""
+    from django.templatetags.static import static
+
+    try:
+        return static("images/airavata-logo.png")
+    except Exception:
+        return None

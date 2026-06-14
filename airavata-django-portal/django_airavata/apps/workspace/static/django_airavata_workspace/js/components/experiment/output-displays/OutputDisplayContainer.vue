@@ -1,56 +1,81 @@
 <template>
-  <b-card>
-    <div slot="header" class="d-flex align-items-baseline">
-      <h6>{{ experimentOutput.name }}</h6>
-      <b-dropdown v-if="showMenu" :text="currentView['name']" class="ml-auto">
-        <b-dropdown-item
-          v-for="(view, index) in outputViews"
-          :key="view['provider-id']"
-          :active="view['provider-id'] === currentView['provider-id']"
-          @click="selectView(index)"
-          >{{ view["name"] }}</b-dropdown-item
-        >
-      </b-dropdown>
-    </div>
-    <component
-      :is="outputDisplayComponentName"
-      :view-data="viewData"
-      :data-products="dataProducts"
-      :experiment-output="experimentOutput"
-    />
-    <interactive-parameters-panel
-      ref="interactiveParametersPanel"
-      v-if="viewData && viewData.interactive"
-      :parameters="viewData.interactive"
-      @input="parametersUpdated"
-    />
-    <div
-      slot="footer"
+  <Card>
+    <CardHeader class="border-b">
+      <div class="flex items-baseline">
+        <h6 class="font-semibold">{{ experimentOutput.name }}</h6>
+        <DropdownMenu v-if="showMenu">
+          <DropdownMenuTrigger as-child>
+            <Button variant="outline" size="sm" class="ml-auto">
+              {{ currentView["name"] }}
+              <ChevronDown class="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              v-for="(view, index) in outputViews"
+              :key="view['provider-id']"
+              :class="{
+                'bg-accent': view['provider-id'] === currentView['provider-id'],
+              }"
+              @click="selectView(index)"
+              >{{ view["name"] }}</DropdownMenuItem
+            >
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </CardHeader>
+    <CardContent>
+      <component
+        :is="outputDisplayComponentName"
+        :view-data="viewData"
+        :data-products="dataProducts"
+        :experiment-output="experimentOutput"
+      />
+      <interactive-parameters-panel
+        ref="interactiveParametersPanel"
+        v-if="viewData && viewData.interactive"
+        :parameters="viewData.interactive"
+        @input="parametersUpdated"
+      />
+    </CardContent>
+    <CardFooter
+      class="border-t"
       v-if="dataProducts.length > 0 || isExecuting"
-      class="d-flex justify-content-end align-items-baseline"
     >
-      <template v-if="isExecuting">
-        <span class="small text-muted mr-2">
-          {{ fetchIntermediateOutputStatusMessage }}</span
-        >
-        <b-btn size="sm" @click="fetchLatest" :disabled="fetchLatestDisabled">
-          <b-spinner
-            small
-            v-if="currentlyRunningIntermediateOutputFetch"
-          ></b-spinner>
-          Fetch Latest</b-btn
-        >
-      </template>
-      <template v-else-if="dataProducts.length === 1">
-        <b-btn size="sm" :href="downloadUrl(dataProducts[0]) + '&download'"
-          >Download</b-btn
-        >
-      </template>
-    </div>
-  </b-card>
+      <div class="flex w-full items-baseline justify-end">
+        <template v-if="isExecuting">
+          <span class="mr-2 text-sm text-muted-foreground">
+            {{ fetchIntermediateOutputStatusMessage }}</span
+          >
+          <Button
+            variant="outline"
+            size="sm"
+            @click="fetchLatest"
+            :disabled="fetchLatestDisabled"
+          >
+            <Loader2
+              v-if="currentlyRunningIntermediateOutputFetch"
+              class="size-4 animate-spin"
+            />
+            Fetch Latest</Button
+          >
+        </template>
+        <template v-else-if="dataProducts.length === 1">
+          <Button
+            as="a"
+            variant="outline"
+            size="sm"
+            :href="downloadUrl(dataProducts[0]) + '&download'"
+            >Download</Button
+          >
+        </template>
+      </div>
+    </CardFooter>
+  </Card>
 </template>
 
 <script>
+import { ChevronDown, Loader2 } from "@lucide/vue";
 import { models } from "django-airavata-api";
 import { components } from "django-airavata-common-ui";
 import DefaultOutputDisplay from "./DefaultOutputDisplay";
@@ -60,7 +85,8 @@ import LinkOutputDisplay from "./LinkOutputDisplay";
 import NotebookOutputDisplay from "./NotebookOutputDisplay";
 import InteractiveParametersPanel from "./interactive-parameters/InteractiveParametersPanel";
 import OutputViewDataLoader from "./OutputViewDataLoader";
-import { mapActions, mapGetters, mapState } from "vuex";
+import { mapActions, mapState } from "pinia";
+import { useViewExperimentStore } from "../../../store";
 import ProcessState from "django-airavata-api/static/django_airavata_api/js/models/ProcessState";
 
 export default {
@@ -72,6 +98,8 @@ export default {
     },
   },
   components: {
+    ChevronDown,
+    Loader2,
     "data-product-viewer": components.DataProductViewer,
     DefaultOutputDisplay,
     HtmlOutputDisplay,
@@ -87,7 +115,7 @@ export default {
       (!this.isFinished || this.dataProducts.length === 0)
     ) {
       this.currentViewIndex = this.outputViews.findIndex(
-        (ov) => ov["provider-id"] === "default"
+        (ov) => ov["provider-id"] === "default",
       );
     }
     if (this.providerId && this.providerId !== "default") {
@@ -102,8 +130,8 @@ export default {
     };
   },
   computed: {
-    ...mapState("viewExperiment", ["fullExperiment"]),
-    ...mapGetters("viewExperiment", [
+    ...mapState(useViewExperimentStore, [
+      "fullExperiment",
       "outputDataProducts",
       "experimentId",
       "isExecuting",
@@ -207,8 +235,9 @@ export default {
         this.experimentOutput.intermediate_output.process_status &&
         this.experimentOutput.intermediate_output.process_status.isFinished
       ) {
-        const timestamp = this.experimentOutput.intermediate_output
-          .process_status.time_of_state_change;
+        const timestamp =
+          this.experimentOutput.intermediate_output.process_status
+            .time_of_state_change;
         msg +=
           "Latest output fetched on " +
           timestamp.toLocaleString([], {
@@ -232,11 +261,11 @@ export default {
     },
   },
   methods: {
-    ...mapActions("viewExperiment", ["submitFetchIntermediateOutputs"]),
+    ...mapActions(useViewExperimentStore, ["submitFetchIntermediateOutputs"]),
     // downloadURL is no longer on the wire; build it from the data product URI.
     downloadUrl(dataProduct) {
       return `/sdk/download/?data-product-uri=${encodeURIComponent(
-        dataProduct.product_uri
+        dataProduct.product_uri,
       )}`;
     },
     selectView(outputViewIndex) {

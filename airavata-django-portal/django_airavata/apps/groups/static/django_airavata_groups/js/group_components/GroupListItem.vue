@@ -1,6 +1,6 @@
 <template>
-  <tr>
-    <td>
+  <TableRow>
+    <TableCell>
       {{ group.name }}
       <gateway-groups-badge
         :group="group"
@@ -10,82 +10,78 @@
           group.is_default_gateway_users_group
         "
       />
-    </td>
-    <td>{{ ownerUsername }}</td>
-    <td>{{ group.description }}</td>
-    <td>
-      <a
-        v-if="group.is_owner || group.is_admin"
-        class="action-link"
-        :href="'/groups/edit/' + encodeURIComponent(group.id) + '/'"
-      >
-        Edit <i class="fa fa-edit"></i>
-      </a>
-      <a
-        href="#"
-        v-if="deleteable"
-        class="action-link"
-        @click="show = true"
-        :variant="deleteButtonVariant"
-      >
-        Delete <i class="fa fa-trash"></i>
-      </a>
-      <b-modal
-        :header-bg-variant="headerBgVariant"
-        :header-text-variant="headerTextVariant"
-        :body-bg-variant="bodyBgVariant"
-        v-model="show"
-        :id="'modal' + group.id"
-        title="Are you sure?"
-      >
-        <p class="my-4">
-          You cannot go back! Do you really want to delete the group '<strong>{{
-            group.name
-          }}</strong
-          >'?
-        </p>
-        <div slot="modal-footer" class="w-100">
-          <b-button
-            class="float-right ml-1"
-            :variant="yesButtonVariant"
-            :disabled="deleting"
-            @click="deleteGroup(group.id)"
-            >Yes</b-button
-          >
-          <b-button
-            class="float-right ml-1"
-            :variant="noButtonVariant"
-            :disabled="deleting"
-            @click="show = false"
-            >No</b-button
-          >
-        </div>
-      </b-modal>
-    </td>
-  </tr>
+    </TableCell>
+    <TableCell>{{ ownerUsername }}</TableCell>
+    <TableCell>{{ group.description }}</TableCell>
+    <TableCell>
+      <div class="flex items-center gap-2">
+        <Button
+          v-if="group.is_owner || group.is_admin"
+          as="a"
+          variant="ghost"
+          size="sm"
+          :href="'/groups/edit/' + encodeURIComponent(group.id) + '/'"
+        >
+          Edit <Pencil class="size-4" />
+        </Button>
+        <Button
+          v-if="deleteable"
+          variant="ghost"
+          size="sm"
+          @click="show = true"
+        >
+          Delete <Trash2 class="size-4" />
+        </Button>
+      </div>
+      <Dialog v-model:open="show">
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Are you sure?</DialogTitle>
+          </DialogHeader>
+          <p class="text-sm">
+            You cannot go back! Do you really want to delete the group '<strong>{{
+              group.name
+            }}</strong
+            >'?
+          </p>
+          <DialogFooter>
+            <Button
+              variant="secondary"
+              :disabled="deleting"
+              @click="show = false"
+              >No</Button
+            >
+            <Button
+              variant="destructive"
+              :disabled="deleting"
+              @click="deleteGroup(group.id)"
+              >Yes</Button
+            >
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </TableCell>
+  </TableRow>
 </template>
 
 <script>
 import { services } from "django-airavata-api";
 import { components } from "django-airavata-common-ui";
+import { Pencil, Trash2 } from "@lucide/vue";
 
 export default {
   name: "group-list-item",
   data() {
     return {
       show: false,
-      deleteButtonVariant: "link",
-      yesButtonVariant: "danger",
-      noButtonVariant: "secondary",
-      headerBgVariant: "danger",
-      bodyBgVariant: "light",
-      headerTextVariant: "light",
       deleting: false,
     };
   },
   props: ["group"],
   components: {
     "gateway-groups-badge": components.GatewayGroupsBadge,
+    Pencil,
+    Trash2,
   },
   computed: {
     deleteable: function () {
@@ -124,5 +120,3 @@ export default {
   },
 };
 </script>
-
-<style></style>

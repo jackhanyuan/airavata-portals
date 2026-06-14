@@ -1,26 +1,13 @@
-import { components, entry } from "django-airavata-common-ui";
+import { entry } from "django-airavata-common-ui";
 import GroupCreateContainer from "./containers/GroupCreateContainer.vue";
 
-entry((Vue) => {
-  new Vue({
-    render(h) {
-      return h(components.MainLayout, [
-        h(GroupCreateContainer, {
-          props: {
-            next: this.next,
-          },
-        }),
-      ]);
-    },
-    data() {
-      return {
-        next: "/groups/",
-      };
-    },
-    beforeMount() {
-      if (this.$el.dataset.next) {
-        this.next = this.$el.dataset.next;
-      }
-    },
-  }).$mount("#group-create");
-});
+// Tailwind v4 + shadcn-vue design tokens and base styles.
+import "django-airavata-common-ui/css/app.css";
+
+// Read data-* attributes before mounting: Vue 3 replaces the element's contents.
+const mountEl = document.getElementById("group-create");
+const next = mountEl?.dataset.next || "/groups/";
+
+// The container renders its own <main-layout> (page header + gutter), so it is
+// mounted directly here instead of being wrapped again.
+entry(GroupCreateContainer, { next }).mount("#group-create");

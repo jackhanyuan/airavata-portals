@@ -1,166 +1,183 @@
 <template>
-  <div class="has-fixed-footer">
-    <div class="row">
-      <div class="col">
-        <h1 class="h4">{{ title }}</h1>
-        <div v-if="owner" class="text-muted mb-2">
-          Created by <span :title="ownerTitle">{{ ownerUserId }}</span>
-        </div>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col">
-        <div class="card">
-          <div class="card-body">
-            <b-form-group label="Name" label-for="profile-name">
-              <b-form-input
-                id="profile-name"
-                type="text"
-                v-model="data.group_resource_profile_name"
-                :disabled="!userHasWriteAccess"
-                required
-                placeholder="Name of this Group Resource Profile"
-              >
-              </b-form-input>
-            </b-form-group>
-            <b-form-group
-              label="Default SSH Credential"
-              label-for="default-credential-store-token"
+  <main-layout
+    :title="title || 'Group Resource Profile'"
+    subtitle="Configure compute resource preferences for this group."
+  >
+    <div class="space-y-4 pb-20">
+      <p v-if="owner" class="text-sm text-muted-foreground">
+        Created by <span :title="ownerTitle">{{ ownerUserId }}</span>
+      </p>
+      <Card>
+        <CardContent class="space-y-4">
+          <div class="space-y-1.5">
+            <Label for="profile-name">Name</Label>
+            <Input
+              id="profile-name"
+              type="text"
+              v-model="data.group_resource_profile_name"
+              :disabled="!userHasWriteAccess"
+              required
+              placeholder="Name of this Group Resource Profile"
             >
-              <ssh-credential-selector
-                id="default-credential-store-token"
-                v-model="data.default_credential_store_token"
-                :readonly="!userHasWriteAccess"
-              >
-              </ssh-credential-selector>
-            </b-form-group>
-            <share-button ref="shareButton" :entity-id="id" />
+            </Input>
           </div>
-        </div>
-      </div>
-    </div>
-    <list-layout
-      :items="data.compute_preferences"
-      :newButtonDisabled="!userHasWriteAccess"
-      title="Compute Preferences"
-      new-item-button-text="New Compute Preference"
-      @add-new-item="createComputePreference"
-    >
-      <template slot="item-list" slot-scope="slotProps">
-        <b-table
-          hover
-          :fields="computePreferencesFields"
-          :items="slotProps.items"
-          sort-by="compute_resource_id"
+          <div class="space-y-1.5">
+            <Label for="default-credential-store-token"
+              >Default SSH Credential</Label
+            >
+            <ssh-credential-selector
+              id="default-credential-store-token"
+              v-model="data.default_credential_store_token"
+              :readonly="!userHasWriteAccess"
+            >
+            </ssh-credential-selector>
+          </div>
+          <share-button ref="shareButton" :entity-id="id" />
+        </CardContent>
+      </Card>
+      <list-layout
+        :items="data.compute_preferences"
+        :newButtonDisabled="!userHasWriteAccess"
+        title="Compute Preferences"
+        new-item-button-text="New Compute Preference"
+        @add-new-item="createComputePreference"
+      >
+        <template v-slot:title>
+          <h2 class="text-lg font-semibold">Compute Preferences</h2>
+        </template>
+        <template v-slot:item-list="slotProps">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead
+                  v-for="field in computePreferencesFields"
+                  :key="field.key"
+                >
+                  {{ field.label }}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow
+                v-for="item in sortedItems(slotProps.items)"
+                :key="item.compute_resource_id"
+              >
+                <TableCell>
+                  <compute-resource-name
+                    :compute-resource-id="item.compute_resource_id"
+                  />
+                </TableCell>
+                <TableCell>{{ item.login_user_name }}</TableCell>
+                <TableCell>{{ item.allocation_project_number }}</TableCell>
+                <TableCell>
+                  <compute-resource-policy-summary
+                    :compute-resource-id="item.compute_resource_id"
+                    :group-resource-profile="data"
+                  />
+                </TableCell>
+                <TableCell>
+                  <compute-resource-reservations-summary
+                    :reservations="item.reservations"
+                  />
+                </TableCell>
+                <TableCell>
+                  <router-link
+                    class="mr-2 inline-flex items-center gap-1 text-primary hover:underline"
+                    v-if="userHasWriteAccess"
+                    :to="{
+                      name: 'compute_preference',
+                      params: {
+                        value: item,
+                        id: id,
+                        host_id: item.compute_resource_id,
+                        groupResourceProfile: data,
+                        computeResourcePolicy: data.getComputeResourcePolicy(
+                          item.compute_resource_id,
+                        ),
+                        batchQueueResourcePolicies:
+                          data.getBatchQueueResourcePolicies(
+                            item.compute_resource_id,
+                          ),
+                      },
+                    }"
+                  >
+                    Edit
+                    <Pencil class="size-4" aria-hidden="true" />
+                  </router-link>
+
+                  <router-link
+                    class="mr-2 inline-flex items-center gap-1 text-primary hover:underline"
+                    v-if="!userHasWriteAccess"
+                    :to="{
+                      name: 'compute_preference',
+                      params: {
+                        value: item,
+                        id: id,
+                        host_id: item.compute_resource_id,
+                        groupResourceProfile: data,
+                        computeResourcePolicy: data.getComputeResourcePolicy(
+                          item.compute_resource_id,
+                        ),
+                        batchQueueResourcePolicies:
+                          data.getBatchQueueResourcePolicies(
+                            item.compute_resource_id,
+                          ),
+                      },
+                    }"
+                  >
+                    View
+                    <Eye class="size-4" aria-hidden="true" />
+                  </router-link>
+
+                  <delete-link
+                    v-if="userHasWriteAccess"
+                    @delete="removeComputePreference(item.compute_resource_id)"
+                  >
+                    Are you sure you want to remove the preferences for compute
+                    resource
+                    <strong>
+                      <compute-resource-name
+                        :compute-resource-id="item.compute_resource_id"
+                      /> </strong
+                    >?
+                  </delete-link>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </template>
+      </list-layout>
+      <div
+        class="bg-background fixed inset-x-0 bottom-0 flex gap-2 border-t p-4 shadow-md"
+      >
+        <Button
+          variant="default"
+          :disabled="!userHasWriteAccess"
+          @click="saveGroupResourceProfile"
+          >Save</Button
         >
-          <template slot="cell(compute_resource_id)" slot-scope="row">
-            <compute-resource-name
-              :compute-resource-id="row.item.compute_resource_id"
-            />
-          </template>
-          <template slot="cell(policy)" slot-scope="row">
-            <compute-resource-policy-summary
-              :compute-resource-id="row.item.compute_resource_id"
-              :group-resource-profile="data"
-            />
-          </template>
-          <template slot="cell(reservations)" slot-scope="row">
-            <compute-resource-reservations-summary :reservations="row.value" />
-          </template>
-          <template slot="cell(action)" slot-scope="row">
-            <router-link
-              class="action-link"
-              v-if="userHasWriteAccess"
-              :to="{
-                name: 'compute_preference',
-                params: {
-                  value: row.item,
-                  id: id,
-                  host_id: row.item.compute_resource_id,
-                  groupResourceProfile: data,
-                  computeResourcePolicy: data.getComputeResourcePolicy(
-                    row.item.compute_resource_id
-                  ),
-                  batchQueueResourcePolicies: data.getBatchQueueResourcePolicies(
-                    row.item.compute_resource_id
-                  ),
-                },
-              }"
-            >
-              Edit
-              <i class="fa fa-edit" aria-hidden="true"></i>
-            </router-link>
-
-            <router-link
-              class="action-link"
-              v-if="!userHasWriteAccess"
-              :to="{
-                name: 'compute_preference',
-                params: {
-                  value: row.item,
-                  id: id,
-                  host_id: row.item.compute_resource_id,
-                  groupResourceProfile: data,
-                  computeResourcePolicy: data.getComputeResourcePolicy(
-                    row.item.compute_resource_id
-                  ),
-                  batchQueueResourcePolicies: data.getBatchQueueResourcePolicies(
-                    row.item.compute_resource_id
-                  ),
-                },
-              }"
-            >
-              View
-              <i class="fa fa-eye" aria-hidden="true"></i>
-            </router-link>
-
-            <delete-link
-              class="action-link"
-              v-if="userHasWriteAccess"
-              @delete="removeComputePreference(row.item.compute_resource_id)"
-            >
-              Are you sure you want to remove the preferences for compute
-              resource
-              <strong>
-                <compute-resource-name
-                  :compute-resource-id="row.item.compute_resource_id"
-                /> </strong
-              >?
-            </delete-link>
-          </template>
-        </b-table>
-      </template>
-    </list-layout>
-    <div class="fixed-footer">
-      <b-button
-        variant="primary"
-        :disabled="!userHasWriteAccess"
-        @click="saveGroupResourceProfile"
-        >Save</b-button
-      >
-      <delete-button
-        v-if="id"
-        class="ml-2"
-        :disabled="!userHasWriteAccess"
-        @delete="removeGroupResourceProfile"
-      >
-        Are you sure you want to remove Group Resource Profile
-        <strong>{{ data.group_resource_profile_name }}</strong
-        >?
-      </delete-button>
-      <b-button class="ml-2" variant="secondary" @click="cancel"
-        >Cancel</b-button
-      >
+        <delete-button
+          v-if="id"
+          :disabled="!userHasWriteAccess"
+          @delete="removeGroupResourceProfile"
+        >
+          Are you sure you want to remove Group Resource Profile
+          <strong>{{ data.group_resource_profile_name }}</strong
+          >?
+        </delete-button>
+        <Button variant="secondary" @click="cancel">Cancel</Button>
+      </div>
+      <compute-resources-modal
+        ref="modalSelectComputeResource"
+        @selected="onSelectComputeResource"
+        :excluded-resource-ids="excludedComputeResourceIds"
+      />
     </div>
-    <compute-resources-modal
-      ref="modalSelectComputeResource"
-      @selected="onSelectComputeResource"
-      :excluded-resource-ids="excludedComputeResourceIds"
-    />
-  </div>
+  </main-layout>
 </template>
 
 <script>
+import { Eye, Pencil } from "@lucide/vue";
 import { components as comps, layouts } from "django-airavata-common-ui";
 import { models, services } from "django-airavata-api";
 import ComputeResourcePolicySummary from "./ComputeResourcePolicySummary.vue";
@@ -188,7 +205,7 @@ export default {
           (grp) => {
             this.data = grp;
             this.userHasWriteAccess = this.data.user_has_write_access;
-          }
+          },
         );
       }
       // Load information about the owner of this GroupResourceProfile
@@ -239,9 +256,12 @@ export default {
   },
 
   components: {
+    Eye,
+    Pencil,
     "delete-button": comps.DeleteButton,
     "delete-link": comps.DeleteLink,
     "share-button": comps.ShareButton,
+    "main-layout": comps.MainLayout,
     "list-layout": layouts.ListLayout,
     ComputeResourcePolicySummary,
     ComputeResourcesModal,
@@ -253,7 +273,7 @@ export default {
     excludedComputeResourceIds() {
       const currentPrefs = this.data.compute_preferences
         ? this.data.compute_preferences.map(
-            (computePreference) => computePreference.compute_resource_id
+            (computePreference) => computePreference.compute_resource_id,
           )
         : [];
       return currentPrefs;
@@ -283,8 +303,17 @@ export default {
     },
   },
   methods: {
+    sortedItems(items) {
+      return items
+        .slice()
+        .sort((a, b) =>
+          (a.compute_resource_id || "")
+            .toLowerCase()
+            .localeCompare((b.compute_resource_id || "").toLowerCase()),
+        );
+    },
     saveGroupResourceProfile: function () {
-      var persist = null;
+      let persist;
       if (this.id) {
         persist = this.service.update({ data: this.data, lookup: this.id });
       } else {
@@ -306,7 +335,8 @@ export default {
       this.$refs.modalSelectComputeResource.show();
     },
     onSelectComputeResource: function (computeResourceId) {
-      const computeResourcePreference = new models.GroupComputeResourcePreference();
+      const computeResourcePreference =
+        new models.GroupComputeResourcePreference();
       computeResourcePreference.compute_resource_id = computeResourceId;
       this.$router.push({
         name: "compute_preference_for_new_group_resource_profile",

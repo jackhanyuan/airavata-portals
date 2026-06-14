@@ -1,29 +1,36 @@
 <template>
-  <b-form-group :label="label" label-for="group-resource-profile">
-    <b-form-select
+  <div class="space-y-1.5">
+    <label
+      for="group-resource-profile"
+      class="text-sm leading-none font-medium select-none"
+      >{{ label }}</label
+    >
+    <select
       id="group-resource-profile"
       :value="groupResourceProfileId"
-      :options="groupResourceProfileOptions"
       required
-      @change="groupResourceProfileChanged"
-      @input.native.stop
       :disabled="disabled"
+      :class="nativeSelectClass"
+      @change="groupResourceProfileChanged($event.target.value)"
     >
-      <template slot="first">
-        <option :value="null" disabled>
-          <slot name="null-option">Select an allocation</slot>
-        </option>
-      </template>
-    </b-form-select>
-  </b-form-group>
+      <option :value="null" disabled>
+        <slot name="null-option">Select an allocation</slot>
+      </option>
+      <option
+        v-for="option in groupResourceProfileOptions"
+        :key="option.value"
+        :value="option.value"
+      >
+        {{ option.text }}
+      </option>
+    </select>
+  </div>
 </template>
 
 <script>
-import Vue from "vue";
-import { BootstrapVue } from "bootstrap-vue";
-import store from "./store";
-import { mapGetters } from "vuex";
-Vue.use(BootstrapVue);
+import { mapState } from "pinia";
+import { useExperimentStore } from "./store";
+import { NATIVE_SELECT_CLASS } from "../lib/utils";
 
 export default {
   name: "group-resource-profile-selector",
@@ -39,17 +46,24 @@ export default {
     disabled: {
       type: Boolean,
       default: false,
-    }
+    },
   },
-  store: store,
   created() {
-    this.$store.dispatch("initializeGroupResourceProfileId", {
+    const store = useExperimentStore();
+    store.initializeGroupResourceProfileId({
       groupResourceProfileId: this.value,
     });
-    this.$store.dispatch("loadGroupResourceProfiles");
+    store.loadGroupResourceProfiles();
   },
   computed: {
-    ...mapGetters(["groupResourceProfileId", "groupResourceProfiles"]),
+    ...mapState(useExperimentStore, {
+      groupResourceProfileId: "getGroupResourceProfileId",
+      groupResourceProfiles: "groupResourceProfiles",
+    }),
+    nativeSelectClass() {
+      // Native option-driven select styled to match a shadcn <Input>.
+      return NATIVE_SELECT_CLASS;
+    },
     groupResourceProfileOptions: function () {
       if (this.groupResourceProfiles && this.groupResourceProfiles.length > 0) {
         const groupResourceProfileOptions = this.groupResourceProfiles.map(
@@ -58,10 +72,10 @@ export default {
               value: groupResourceProfile.group_resource_profile_id,
               text: groupResourceProfile.group_resource_profile_name,
             };
-          }
+          },
         );
         groupResourceProfileOptions.sort((a, b) =>
-          a.text.localeCompare(b.text)
+          a.text.localeCompare(b.text),
         );
         return groupResourceProfileOptions;
       } else {
@@ -71,7 +85,7 @@ export default {
   },
   methods: {
     groupResourceProfileChanged: function (groupResourceProfileId) {
-      this.$store.dispatch("updateGroupResourceProfileId", {
+      useExperimentStore().updateGroupResourceProfileId({
         groupResourceProfileId,
       });
     },
@@ -87,7 +101,7 @@ export default {
   watch: {
     value(newValue) {
       if (newValue !== this.groupResourceProfileId) {
-        this.$store.dispatch("updateGroupResourceProfileId", {
+        useExperimentStore().updateGroupResourceProfileId({
           groupResourceProfileId: newValue,
         });
       }

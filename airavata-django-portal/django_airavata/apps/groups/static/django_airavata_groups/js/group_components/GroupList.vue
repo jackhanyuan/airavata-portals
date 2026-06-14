@@ -1,38 +1,49 @@
 <template>
   <div>
-    <b-alert
-      dismissible
-      :variant="alertVariant"
-      :show="showDismissibleAlert"
-      @dismissed="showDismissibleAlert = false"
-      >{{ alertMsg }}</b-alert
+    <Alert
+      v-if="showDismissibleAlert"
+      :variant="alertVariant === 'danger' ? 'destructive' : 'default'"
+      class="mb-4"
     >
-    <table class="table table-hover">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Owner</th>
-          <th>Description</th>
-          <th id="group-list-actions-header">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
+      <AlertDescription class="flex w-full items-start gap-2">
+        <span>{{ alertMsg }}</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="ml-auto shrink-0"
+          @click="showDismissibleAlert = false"
+        >
+          <X class="size-4" />
+        </Button>
+      </AlertDescription>
+    </Alert>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>Owner</TableHead>
+          <TableHead>Description</TableHead>
+          <TableHead class="min-w-[150px]">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         <group-list-item
           @deleteSuccess="deleteSuccess"
           @deleteFailed="deleteFailed"
-          v-bind:group="group"
-          v-bind:type="owner"
+          :group="group"
+          :type="owner"
           v-for="group in groupsForOwners"
-          v-bind:key="group.id"
+          :key="group.id"
         >
         </group-list-item>
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   </div>
 </template>
 
 <script>
 import GroupListItem from "./GroupListItem.vue";
+import { X } from "@lucide/vue";
 
 export default {
   name: "group-list",
@@ -47,6 +58,7 @@ export default {
   },
   components: {
     GroupListItem,
+    X,
   },
   methods: {
     deleteSuccess() {
@@ -60,9 +72,3 @@ export default {
   },
 };
 </script>
-
-<style>
-#group-list-actions-header {
-  min-width: 150px;
-}
-</style>

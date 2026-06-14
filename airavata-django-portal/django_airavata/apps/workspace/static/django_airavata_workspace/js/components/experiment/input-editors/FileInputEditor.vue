@@ -1,6 +1,6 @@
 <template>
   <div class="file-input-editor">
-    <div class="d-flex" v-if="isDataProductURI && dataProduct">
+    <div class="flex items-center" v-if="isDataProductURI && dataProduct">
       <user-storage-link
         class="mr-auto"
         :data-product-uri="dataProduct.product_uri"
@@ -16,14 +16,15 @@
         <strong>{{ dataProduct.product_name }}</strong
         >?
       </delete-link>
-      <b-link
+      <a
         v-else-if="!readOnly"
-        @click="unselect"
-        class="ml-2 text-secondary"
+        href="#"
+        @click.prevent="unselect"
+        class="ml-2 inline-flex items-center gap-1 text-muted-foreground"
       >
         Unselect
-        <i class="fa fa-times" aria-hidden="true"></i>
-      </b-link>
+        <X class="size-4" aria-hidden="true" />
+      </a>
     </div>
     <input-file-selector
       v-if="!readOnly && (!isDataProductURI || uploading)"
@@ -36,6 +37,7 @@
 </template>
 
 <script>
+import { X } from "@lucide/vue";
 import { models, services, utils } from "django-airavata-api";
 import { InputEditorMixin } from "django-airavata-workspace-plugin-api";
 import { components } from "django-airavata-common-ui";
@@ -46,6 +48,7 @@ export default {
   name: "file-input-editor",
   mixins: [InputEditorMixin],
   components: {
+    X,
     UserStorageLink,
     "delete-link": components.DeleteLink,
     InputFileSelector,
@@ -113,7 +116,7 @@ export default {
     deleteDataProduct() {
       utils.FetchUtils.delete(
         "/api/delete-file?data-product-uri=" + encodeURIComponent(this.value),
-        { ignoreErrors: true }
+        { ignoreErrors: true },
       )
         .then(() => {
           this.data = null;

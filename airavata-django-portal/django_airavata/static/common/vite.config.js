@@ -1,24 +1,42 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue2";
+import vue from "@vitejs/plugin-vue";
+import tailwindcss from "@tailwindcss/vite";
 
 const publicPath = "/static/common/dist/";
 
 // Emit a webpack-stats.json compatible with django-webpack-loader so the Django
-// templates' {% render_bundle 'app'/'notices' ... 'COMMON' %} tags keep working
-// unchanged after the webpack -> Vite migration.
+// templates' {% render_bundle/get_files 'app'/'shell' ... 'COMMON' %} tags keep
+// working unchanged after the webpack -> Vite migration.
 function djangoWebpackStats() {
   return {
     name: "django-webpack-stats",
     generateBundle(_options, bundle) {
+      // Index emitted CSS assets by their base name (e.g. "css/app.css" -> "app").
+      // A CSS-only entry (main.js imports only app.css, no JS) leaves the CSS out
+      // of the chunk's viteMetadata.importedCss, so we also match CSS assets to
+      // their entry by name.
+      const cssByName = {};
+      for (const [fileName, item] of Object.entries(bundle)) {
+        if (item.type === "asset" && fileName.endsWith(".css")) {
+          const base = fileName.split("/").pop().replace(/\.css$/, "");
+          (cssByName[base] ||= []).push(fileName);
+        }
+      }
       const chunks = {};
       for (const fileName of Object.keys(bundle)) {
         const item = bundle[fileName];
         if (item.type === "chunk" && item.isEntry) {
           const files = (chunks[item.name] ||= []);
-          const add = (f) => files.push({ name: f, publicPath: publicPath + f });
+          const seen = new Set();
+          const add = (f) => {
+            if (seen.has(f)) return;
+            seen.add(f);
+            files.push({ name: f, publicPath: publicPath + f });
+          };
           add(fileName);
           for (const css of item.viteMetadata?.importedCss || []) add(css);
+          for (const css of cssByName[item.name] || []) add(css);
         }
       }
       this.emitFile({
@@ -34,11 +52,14 @@ function djangoWebpackStats() {
 // are mapped into webpack-stats.json for django-webpack-loader.
 export default defineConfig({
   base: publicPath,
-  plugins: [vue(), djangoWebpackStats()],
+  plugins: [vue(), tailwindcss(), djangoWebpackStats()],
   // The source uses extensionless `.vue` imports throughout (Vue CLI resolved
   // them automatically); add `.vue` so Vite/Rollup resolves them too.
   resolve: {
     extensions: [".mjs", ".js", ".mts", ".ts", ".jsx", ".tsx", ".json", ".vue"],
+    alias: {
+      "@": resolve(__dirname, "js"),
+    },
   },
   build: {
     outDir: "dist",
@@ -47,7 +68,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         app: resolve(__dirname, "js/main.js"),
-        notices: resolve(__dirname, "js/notices.js"),
+        shell: resolve(__dirname, "js/shell.js"),
       },
       output: {
         entryFileNames: "js/[name].js",

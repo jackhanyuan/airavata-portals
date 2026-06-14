@@ -1,8 +1,22 @@
-import { components, entry } from "django-airavata-common-ui";
+import { h } from "vue";
+// Deep import (not the `index.js` barrel) so this page-level bundle pulls in only
+// what it renders. Importing the `components` barrel would also bundle the shared
+// `Uppy` component, whose `@uppy/status-bar/dist/style.min.css` import is not
+// resolvable under the package's `exports` field (these pages never use the
+// uploader). See TODO(vue3-migration) note in the migration report.
+import entry from "django-airavata-common-ui/js/entry";
 import ParsersManageContainer from "./containers/ParsersManageContainer.vue";
 
-entry((Vue) => {
-  new Vue({
-    render: (h) => h(components.MainLayout, [h(ParsersManageContainer)]),
-  }).$mount("#parsers-manage");
-});
+// Tailwind v4 + shadcn-vue design tokens and base styles (loads the shared
+// common bundle's CSS). The shadcn-vue UI components are registered globally by
+// common's entry(), so templates use <Button>/<Card>/<Input>/... with no imports.
+import "django-airavata-common-ui/css/app.css";
+
+// The container renders its own MainLayout (page title/subtitle + actions).
+const App = {
+  render() {
+    return h(ParsersManageContainer);
+  },
+};
+
+entry(App).mount("#parsers-manage");
