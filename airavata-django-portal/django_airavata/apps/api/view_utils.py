@@ -37,16 +37,6 @@ class GenericAPIBackedViewSet(web.GenericViewSet):
         """
         raise NotImplementedError()
 
-    def get_queryset(self):
-        if isinstance(self, web.mixins.ListModelMixin):
-            return self.get_list()
-        else:
-            # get_queryset() is invoked whenever a detail extra action route
-            # returns a many valued response. For ViewSets that have such
-            # actions, return None here so they don't need to provide a
-            # get_list() implementation
-            return None
-
     def get_object(self):
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
         lookup_value = self.kwargs[lookup_url_kwarg]
@@ -63,24 +53,6 @@ class GenericAPIBackedViewSet(web.GenericViewSet):
     @property
     def gateway_id(self):
         return settings.GATEWAY_ID
-
-    @property
-    def authz_token(self):
-        return self.request.authz_token
-
-
-class ReadOnlyAPIBackedViewSet(
-    web.mixins.RetrieveModelMixin, web.mixins.ListModelMixin, GenericAPIBackedViewSet
-):
-    """
-    A viewset that provides default `retrieve()` and `list()` actions.
-
-    Subclasses must implement the following:
-    * get_list(self)
-    * get_instance(self, lookup_value)
-    """
-
-    pass
 
 
 class APIBackedViewSet(
@@ -355,11 +327,6 @@ class IsInAdminsGroupPermission(web.permissions.BasePermission):
             return request.is_gateway_admin or request.is_read_only_gateway_admin
         else:
             return request.is_gateway_admin
-
-
-class ReadOnly(web.permissions.BasePermission):
-    def has_permission(self, request, view):
-        return request.method in web.SAFE_METHODS
 
 
 def _storage_root_relative(path):

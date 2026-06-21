@@ -3,17 +3,13 @@ import io
 import json
 import logging
 import os
-import warnings
 from datetime import UTC, datetime, timedelta
-from urllib.parse import quote
 
 from airavata_sdk.helpers import experiment_orchestration, queue_settings
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
-from django.shortcuts import redirect
 from django.urls import reverse
-from django.views.decorators.gzip import gzip_page
 
 from django_airavata import context_processors
 from django_airavata.apps.api import web
@@ -31,21 +27,11 @@ from django_airavata.apps.auth import iam_admin_client
 
 from . import exceptions, helpers, output_views, serializers, signals, tus, view_utils
 
-READ_PERMISSION_TYPE = "{}:READ"
-
 # Input files uploaded for an experiment are staged under this directory in the
 # user's storage (mirrors the legacy SDK's TMP_INPUT_FILE_UPLOAD_DIR).
 TMP_INPUT_FILE_UPLOAD_DIR = "tmp"
 
 log = logging.getLogger(__name__)
-
-
-def _data_type_pb2():
-    from airavata_sdk.generated.org.apache.airavata.model.application.io import (
-        application_io_pb2,
-    )
-
-    return application_io_pb2
 
 
 # First replica's ~/-prefixed file path from a proto DataProductModel.
@@ -128,16 +114,8 @@ class GroupViewSet(APIBackedViewSet):
         return sharing_resources
 
     def _gateway_groups(self):
-        # The middleware stashes a camelCase map in the session; the SDK helpers
-        # want snake_case keys. Translate when present, else None (helper fetches
-        # it via GetGatewayGroups).
-        gg = self.request.session.get("GATEWAY_GROUPS")
-        if gg:
-            return {
-                "admins_group_id": gg["adminsGroupId"],
-                "read_only_admins_group_id": gg["readOnlyAdminsGroupId"],
-                "default_gateway_users_group_id": gg["defaultGatewayUsersGroupId"],
-            }
+        # GATEWAY_GROUPS is never written to the session, so this is always None;
+        # the SDK helpers fetch the groups via GetGatewayGroups when not provided.
         return None
 
     def get_list(self):
@@ -717,7 +695,7 @@ class ApplicationModuleViewSet(web.mixins.DestroyModelMixin, SdkResourceViewSet)
         return HttpResponse(status=204)
 
     @web.action(detail=False)
-    def list_all(self, request, format=None):
+    def list_all(self, request):
         has_write = getattr(request, "is_gateway_admin", False)
         return web.Response(
             self.sdk().list_application_modules(
@@ -970,19 +948,19 @@ class ComputeResourceViewSet(web.mixins.RetrieveModelMixin, GenericAPIBackedView
 
         return compute_resources
 
-    def get_instance(self, lookup_value, format=None):
+    def get_instance(self, lookup_value):
         return self._sdk().get_compute_resource(self.request.airavata, lookup_value)
 
     def retrieve(self, request, *args, **kwargs):
         return web.Response(self.get_object())
 
     @web.action(detail=False)
-    def all_names(self, request, format=None):
+    def all_names(self, request):
         """Return a map of compute resource names keyed by resource id."""
         return web.Response(self._sdk().list_compute_resource_names(request.airavata))
 
     @web.action(detail=False)
-    def all_names_list(self, request, format=None):
+    def all_names_list(self, request):
         """Return a list of compute resource names keyed by resource id."""
         all_names = self._sdk().list_compute_resource_names(request.airavata)
         return web.Response(
@@ -1002,116 +980,12 @@ class ComputeResourceViewSet(web.mixins.RetrieveModelMixin, GenericAPIBackedView
         )
 
     @web.action(detail=True)
-    def queues(self, request, compute_resource_id, format=None):
+    def queues(self, request, compute_resource_id):
         """Return the resource's batch-queue names (a plain string list)."""
         details = self._sdk().get_compute_resource(
             request.airavata, compute_resource_id
         )
         return web.Response([queue.queue_name for queue in details.batch_queues])
-
-
-# Per-protocol job-submission detail views — proto-direct, thin.
-#
-# Each delegates to the SDK ``compute_resources`` helper
-# (``get_{local,ssh,unicore,cloud}_job_submission``), which returns the bare
-# facade proto directly.  ``ProtoJSONRenderer`` flattens it to snake_case JSON
-# (``MessageToDict(preserving_proto_field_name=True,
-# always_print_fields_with_no_presence=True)``: enums as member NAMES, nested
-# ``resource_job_manager`` and its enum-keyed maps included).  These resources
-# carry no hyperlink, ownership, or sharing fields, so there is no envelope and
-# no link injection.  No DRF serializer, no camelize, no dict transform.
-
-
-def _job_submission_sdk():
-    from airavata_sdk.helpers import compute_resources
-
-    return compute_resources
-
-
-class LocalJobSubmissionView(web.APIView):
-    def get(self, request, format=None):
-        job_submission_id = request.query_params["id"]
-        return web.Response(
-            _job_submission_sdk().get_local_job_submission(
-                request.airavata, job_submission_id
-            )
-        )
-
-
-class CloudJobSubmissionView(web.APIView):
-    def get(self, request, format=None):
-        job_submission_id = request.query_params["id"]
-        return web.Response(
-            _job_submission_sdk().get_cloud_job_submission(
-                request.airavata, job_submission_id
-            )
-        )
-
-
-class SshJobSubmissionView(web.APIView):
-    def get(self, request, format=None):
-        job_submission_id = request.query_params["id"]
-        return web.Response(
-            _job_submission_sdk().get_ssh_job_submission(
-                request.airavata, job_submission_id
-            )
-        )
-
-
-class UnicoreJobSubmissionView(web.APIView):
-    def get(self, request, format=None):
-        job_submission_id = request.query_params["id"]
-        return web.Response(
-            _job_submission_sdk().get_unicore_job_submission(
-                request.airavata, job_submission_id
-            )
-        )
-
-
-def _data_movement_sdk():
-    from airavata_sdk.helpers import storage_resources
-
-    return storage_resources
-
-
-# Per-protocol data movement — proto-direct.  Each SDK helper returns the bare
-# facade proto (``LOCALDataMovement`` / ``SCPDataMovement`` /
-# ``GridFTPDataMovement``); these resources carry no hyperlink / ownership /
-# sharing fields, so there is no envelope.  ``ProtoJSONRenderer`` flattens each
-# to snake_case JSON (``security_protocol`` as the enum member NAME, ``ssh_port``
-# as a number, ``grid_ftp_end_points`` as the snake_case proto field).  The
-# UNICORE protocol has no facade getter, so no ``UnicoreDataMovementView`` is
-# exposed (it would be a 501).
-
-
-class GridFtpDataMovementView(web.APIView):
-    def get(self, request, format=None):
-        data_movement_id = request.query_params["id"]
-        return web.Response(
-            _data_movement_sdk().get_grid_ftp_data_movement(
-                request.airavata, data_movement_id
-            )
-        )
-
-
-class ScpDataMovementView(web.APIView):
-    def get(self, request, format=None):
-        data_movement_id = request.query_params["id"]
-        return web.Response(
-            _data_movement_sdk().get_scp_data_movement(
-                request.airavata, data_movement_id
-            )
-        )
-
-
-class LocalDataMovementView(web.APIView):
-    def get(self, request, format=None):
-        data_movement_id = request.query_params["id"]
-        return web.Response(
-            _data_movement_sdk().get_local_data_movement(
-                request.airavata, data_movement_id
-            )
-        )
 
 
 def _data_product_has_write(request, data_product):
@@ -1146,7 +1020,7 @@ class DataProductView(web.APIView):
 
         return research_resources
 
-    def get(self, request, format=None):
+    def get(self, request):
         data_product_uri = request.query_params["product-uri"]
         data_product = request.airavata.research.get_data_product(data_product_uri)
         has_write = _data_product_has_write(request, data_product)
@@ -1155,7 +1029,7 @@ class DataProductView(web.APIView):
         )
         return web.Response(result)
 
-    def put(self, request, format=None):
+    def put(self, request):
         data_product_uri = request.query_params["product-uri"]
         data_product = request.airavata.research.get_data_product(data_product_uri)
         # The body carries ``file_content_text`` (snake_case); the legacy
@@ -1176,7 +1050,7 @@ class DataProductView(web.APIView):
                 content=file_content.encode("utf-8"),
                 name=data_product.product_name or os.path.basename(file_path),
             )
-            return self.get(request=request, format=format)
+            return self.get(request=request)
         else:
             return web.Response(status=web.status.HTTP_400_BAD_REQUEST)
 
@@ -1229,24 +1103,6 @@ def tus_upload_finish(request):
     except Exception as e:
         log.error("Failed to finish tus upload", exc_info=True, extra={"request": request})
         return exceptions.generic_json_exception_response(e, status=400)
-
-
-@gzip_page
-@web.api_view()
-def download_file(request):
-    # TODO: remove this deprecated view
-    warnings.warn(
-        "download_file view is deprecated; use 'download-file'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    # Redirect to the gRPC byte-streaming download endpoint.
-    data_product_uri = request.GET.get("data-product-uri", "")
-    return redirect(
-        request.build_absolute_uri(reverse("django_airavata_api:download-file"))
-        + "?data-product-uri="
-        + quote(data_product_uri)
-    )
 
 
 @web.api_view()
@@ -1453,16 +1309,8 @@ class SharedEntityViewSet(
         return sharing_resources
 
     def _gateway_groups(self):
-        # The middleware stashes a camelCase map in the session; the SDK helpers
-        # want snake_case keys. Translate when present, else None (helper fetches
-        # it via GetGatewayGroups).
-        gg = self.request.session.get("GATEWAY_GROUPS")
-        if gg:
-            return {
-                "admins_group_id": gg["adminsGroupId"],
-                "read_only_admins_group_id": gg["readOnlyAdminsGroupId"],
-                "default_gateway_users_group_id": gg["defaultGatewayUsersGroupId"],
-            }
+        # GATEWAY_GROUPS is never written to the session, so this is always None;
+        # the SDK helpers fetch the groups via GetGatewayGroups when not provided.
         return None
 
     def retrieve(self, request, *args, **kwargs):
@@ -1596,9 +1444,18 @@ class SharedEntityViewSet(
         )
 
 
-class CredentialSummaryViewSet(APIBackedViewSet):
+class CredentialSummaryViewSet(
+    web.mixins.RetrieveModelMixin,
+    web.mixins.ListModelMixin,
+    web.mixins.DestroyModelMixin,
+    GenericAPIBackedViewSet,
+):
     """Credential-summaries resource. SDK returns ``WithAccess[CredentialSummary]``
-    (``user_has_write_access`` keyed on the credential ``token``)."""
+    (``user_has_write_access`` keyed on the credential ``token``).
+
+    Read + delete + the custom ``ssh``/``password`` list filters and
+    ``create_ssh``/``create_password`` actions (the generic create/update verbs
+    are not exposed; credentials are created via those typed actions)."""
 
     @staticmethod
     def _sdk():
@@ -1683,7 +1540,7 @@ class CurrentGatewayResourceProfile(web.APIView):
 
         return compute_resources
 
-    def get(self, request, format=None):
+    def get(self, request):
         has_write = getattr(request, "is_gateway_admin", False)
         return web.Response(
             self._sdk().get_gateway_resource_profile(
@@ -1691,7 +1548,7 @@ class CurrentGatewayResourceProfile(web.APIView):
             )
         )
 
-    def put(self, request, format=None):
+    def put(self, request):
         has_write = getattr(request, "is_gateway_admin", False)
         data = request.data if isinstance(request.data, dict) else {}
         return web.Response(
@@ -1703,7 +1560,7 @@ class CurrentGatewayResourceProfile(web.APIView):
 
 
 class ExperimentArchiveView(web.APIView):
-    def get(self, request, experiment_id=None, format=None):
+    def get(self, request, experiment_id=None):
         # Archive status was sourced from the portal's UserDataArchive DB tables
         # (written by an offline batch job). With no database, the portal always
         # reports not-archived; there is no server-side RPC to query this yet.
@@ -1735,7 +1592,7 @@ class StorageResourceViewSet(web.mixins.RetrieveModelMixin, GenericAPIBackedView
         return web.Response(self.get_instance(self.kwargs[self.lookup_field]))
 
     @web.action(detail=False)
-    def all_names(self, request, format=None):
+    def all_names(self, request):
         return web.Response(self._sdk().list_storage_resource_names(request.airavata))
 
 
@@ -1792,10 +1649,6 @@ class ParserViewSet(SdkResourceViewSet):
         return research_resources
 
 
-# Sentinel for "key absent" in dict.pop (distinguishes a real None value).
-_SENTINEL = object()
-
-
 def _user_storage_path(path, experiment_id=None, request=None):
     # Shim over the SDK resolver for portal callers that pass a Django request
     # (the SDK helper takes the request.airavata client).
@@ -1828,13 +1681,13 @@ class UserStoragePathView(web.APIView):
 
         return storage_resources
 
-    def get(self, request, path="/", format=None):
+    def get(self, request, path="/"):
         # AIRAVATA-3460 Allow passing path as a query parameter instead
         path = request.query_params.get("path", path)
         experiment_id = request.query_params.get("experiment-id")
         return self._create_response(request, path, experiment_id=experiment_id)
 
-    def post(self, request, path="/", format=None):
+    def post(self, request, path="/"):
         sdk = self._sdk()
         path = request.data.get("path", path)
         experiment_id = request.data.get("experiment-id")
@@ -1875,14 +1728,14 @@ class UserStoragePathView(web.APIView):
         )
 
     # Accept either to replace file or to replace file content text.
-    def put(self, request, path="/", format=None):
+    def put(self, request, path="/"):
         sdk = self._sdk()
         path = request.POST.get("path", path)
         # Replace the file if the request has a file upload.
         if "file" in request.FILES:
-            self.delete(request=request, path=path, format=format)
+            self.delete(request=request, path=path)
             dir_path, _file_name = os.path.split(path)
-            self.post(request=request, path=dir_path, format=format)
+            self.post(request=request, path=dir_path)
         # Replace only the file content if the request body has the `fileContentText`
         elif request.data and "fileContentText" in request.data:
             request.airavata.storage.upload_file(
@@ -1895,7 +1748,7 @@ class UserStoragePathView(web.APIView):
 
         return self._create_response(request=request, path=path)
 
-    def delete(self, request, path="/", format=None):
+    def delete(self, request, path="/"):
         sdk = self._sdk()
         path = request.data.get("path", path)
         experiment_id = request.data.get("experiment-id")
@@ -1999,7 +1852,7 @@ class ExperimentStoragePathView(web.APIView):
 
         return storage_resources
 
-    def get(self, request, experiment_id=None, path="", format=None):
+    def get(self, request, experiment_id=None, path=""):
         return self._create_response(request, experiment_id, path)
 
     def _create_response(self, request, experiment_id, path):
@@ -2054,7 +1907,7 @@ class ExperimentStoragePathView(web.APIView):
 
 
 class WorkspacePreferencesView(web.APIView):
-    def get(self, request, format=None):
+    def get(self, request):
         helper = helpers.WorkspacePreferencesHelper()
         workspace_preferences = helper.get(request)
         return web.Response(
@@ -2188,7 +2041,7 @@ class ManageNotificationViewSet(APIBackedViewSet):
 
 
 class AckNotificationViewSet(web.APIView):
-    def get(self, request, format=None):
+    def get(self, request):
         if "id" in request.GET:
             notification_id = request.GET["id"]
             context_processors.mark_notification_read(
@@ -2446,7 +2299,7 @@ class ExperimentStatisticsView(web.APIView):
 
         return research_resources
 
-    def get(self, request, format=None):
+    def get(self, request):
         if "fromTime" in request.GET:
             from_time = (
                 view_utils.convert_utc_iso8601_to_date(
@@ -2572,7 +2425,7 @@ class UnverifiedEmailUserViewSet(
 
 
 class LogRecordConsumer(web.APIView):
-    def post(self, request, format=None):
+    def post(self, request):
         try:
             log_record = serializers.parse_log_record(request.data)
         except serializers.ValidationError as e:
@@ -2593,7 +2446,7 @@ class LogRecordConsumer(web.APIView):
 
 
 class SettingsAPIView(web.APIView):
-    def get(self, request, format=None):
+    def get(self, request):
         return web.Response(
             serializers.settings_data(
                 settings.FILE_UPLOAD_MAX_FILE_SIZE,
@@ -2604,7 +2457,7 @@ class SettingsAPIView(web.APIView):
 
 
 class APIServerStatusCheckView(web.APIView):
-    def get(self, request, format=None):
+    def get(self, request):
         try:
             request.airavata.research.get_user_projects(
                 gateway_id=settings.GATEWAY_ID,

@@ -2,22 +2,19 @@
 uses.
 
 This module reimplements — over plain Django + stdlib + grpc, with **no**
-``rest_framework`` import — the bounded DRF surface the API/auth apps rely on:
-``Response``/``status``, permissions (``BasePermission`` with ``|``/``&``/``~``
-composition, ``IsAuthenticated``, ``AllowAny``), ``ParseError``/
-``ValidationError``, ``APIView``, ``GenericViewSet``/``ViewSet`` + the five model
-mixins, the ``@action``/``@api_view`` decorators, ``LimitOffsetPagination``, the
-``route()`` router (a byte-for-byte ``DefaultRouter`` equivalent minus the
-``.json`` format-suffix variants, the api-root and the browsable API), plus
-``reverse`` and the ``remove_query_param``/``replace_query_param`` helpers.
+``rest_framework`` import — the bounded DRF surface the API app relies on:
+``Response``/``status``, permissions (``BasePermission``, ``IsAuthenticated``),
+``ParseError``, ``APIView``, ``GenericViewSet`` + the five model mixins, the
+``@action``/``@api_view`` decorators, ``LimitOffsetPagination``, the ``route()``
+router (a ``DefaultRouter`` equivalent minus the ``.json`` format-suffix
+variants, the api-root and the browsable API), plus ``reverse`` and the
+``remove_query_param``/``replace_query_param`` helpers.
 
 The classes mirror the exact DRF attributes/methods that ``view_utils.py`` and
-``views.py`` call (``get_object``/``get_queryset``/``get_serializer``/
-``check_object_permissions``/``lookup_field``/``lookup_url_kwarg``/
-``lookup_value_regex``/``kwargs``/``request``/``paginate_queryset``/
-``get_paginated_response``/``pagination_class``/``pagination_viewname``/
-``mixins.*``) so they are drop-in compatible when those modules later rebase onto
-this module.
+``views.py`` call (``get_object``/``check_object_permissions``/``lookup_field``/
+``lookup_url_kwarg``/``lookup_value_regex``/``kwargs``/``request``/
+``paginate_queryset``/``get_paginated_response``/``pagination_class``/
+``pagination_viewname``/``mixins.*``).
 """
 
 import json
@@ -28,7 +25,6 @@ from urllib import parse
 
 import grpc
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import Http404, HttpResponse, HttpResponseBase
 from django.urls import re_path, reverse  # noqa: F401  (reverse re-exported)
@@ -143,22 +139,6 @@ class ParseError(Exception):
         super().__init__(self.detail)
 
 
-class ValidationError(Exception):
-    """Validation failure carrying ``.detail`` (dict/list/str), like DRF.
-
-    DRF normalizes any of those into ``.detail``; callers (serializers/views)
-    pass a dict of field errors, a list, or a plain string and later read
-    ``e.detail``.
-    """
-
-    status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Invalid input."
-
-    def __init__(self, detail=None):
-        self.detail = detail if detail is not None else self.default_detail
-        super().__init__(self.detail)
-
-
 # ---------------------------------------------------------------------------
 # Permissions
 # ---------------------------------------------------------------------------
@@ -166,45 +146,7 @@ class ValidationError(Exception):
 SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 
 
-class OperationHolderMixin:
-    """Adds DRF-style ``|``/``&``/``~`` composition to permission classes.
-
-    These operate on the permission *class* (DRF composes
-    ``IsInAdminsGroupPermission | ReadOnly`` at class-definition / attribute
-    level), so the operators return a composed class that the view instantiates.
-    """
-
-    def __and__(self, other):
-        return AND(self, other)
-
-    def __or__(self, other):
-        return OR(self, other)
-
-    def __invert__(self):
-        return NOT(self)
-
-
-class _OperandHolder(OperationHolderMixin):
-    """Wraps a (composed) permission class so the operators chain."""
-
-    def __init__(self, operator_class, op1_class, op2_class=None):
-        self.operator_class = operator_class
-        self.op1_class = op1_class
-        self.op2_class = op2_class
-
-    def __call__(self, *args, **kwargs):
-        op1 = self.op1_class()
-        op2 = self.op2_class() if self.op2_class is not None else None
-        return self.operator_class(op1, op2)
-
-
-class BasePermissionMetaclass(OperationHolderMixin, type):
-    """Metaclass so the operators work on permission *classes* directly."""
-
-    pass
-
-
-class BasePermission(metaclass=BasePermissionMetaclass):
+class BasePermission:
     """Base permission. Defaults allow; subclasses override the hooks."""
 
     def has_permission(self, request, view):
@@ -213,81 +155,11 @@ class BasePermission(metaclass=BasePermissionMetaclass):
     def has_object_permission(self, request, view, obj):
         return True
 
-    def __and__(self, other):
-        return AND(self, other)
-
-    def __or__(self, other):
-        return OR(self, other)
-
-    def __invert__(self):
-        return NOT(self)
-
-
-class AND:
-    def __init__(self, op1, op2):
-        self.op1 = op1
-        self.op2 = op2
-
-    def has_permission(self, request, view):
-        return self.op1.has_permission(request, view) and self.op2.has_permission(
-            request, view
-        )
-
-    def has_object_permission(self, request, view, obj):
-        return self.op1.has_object_permission(
-            request, view, obj
-        ) and self.op2.has_object_permission(request, view, obj)
-
-
-class OR:
-    def __init__(self, op1, op2):
-        self.op1 = op1
-        self.op2 = op2
-
-    def has_permission(self, request, view):
-        return self.op1.has_permission(request, view) or self.op2.has_permission(
-            request, view
-        )
-
-    def has_object_permission(self, request, view, obj):
-        # Mirror DRF: an OR short-circuits at the request level — if op1 already
-        # granted request-level access, object-level access is also granted.
-        return (
-            self.op1.has_permission(request, view)
-            and self.op1.has_object_permission(request, view, obj)
-        ) or (
-            self.op2.has_permission(request, view)
-            and self.op2.has_object_permission(request, view, obj)
-        )
-
-
-class NOT:
-    def __init__(self, op1, op2=None):
-        self.op1 = op1
-
-    def has_permission(self, request, view):
-        return not self.op1.has_permission(request, view)
-
-    def has_object_permission(self, request, view, obj):
-        return not self.op1.has_object_permission(request, view, obj)
-
-
-# Make the operators on BasePermission subclasses return _OperandHolder so that
-# ``ClassA | ClassB`` (classes, not instances) composes into a callable class.
-OperationHolderMixin.__or__ = lambda self, other: _OperandHolder(OR, self, other)  # ty: ignore[invalid-assignment]  # intentional monkeypatch so class-level operators return _OperandHolder
-OperationHolderMixin.__and__ = lambda self, other: _OperandHolder(AND, self, other)  # ty: ignore[invalid-assignment]  # intentional monkeypatch so class-level operators return _OperandHolder
-OperationHolderMixin.__invert__ = lambda self: _OperandHolder(NOT, self)  # ty: ignore[invalid-assignment]  # intentional monkeypatch so class-level operators return _OperandHolder
-
 
 class IsAuthenticated(BasePermission):
     def has_permission(self, request, view):
         user = getattr(request, "user", None)
         return bool(user and user.is_authenticated)
-
-
-class AllowAny(BasePermission):
-    def has_permission(self, request, view):
-        return True
 
 
 # ---------------------------------------------------------------------------
@@ -366,7 +238,7 @@ def exception_to_response(exc, request=None):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    if isinstance(exc, (ParseError, ValidationError)):
+    if isinstance(exc, ParseError):
         return Response({"detail": exc.detail}, status=status.HTTP_400_BAD_REQUEST)
 
     # Generic handler
@@ -531,9 +403,6 @@ class ViewSetMixin:
             self.kwargs = kwargs
             return self.dispatch(request, *args, **kwargs)
 
-        view.cls = cls  # ty: ignore[unresolved-attribute]  # DRF shim: dynamic function attribute (mirrors DRF as_view)
-        view.initkwargs = initkwargs  # ty: ignore[unresolved-attribute]  # DRF shim: dynamic function attribute (mirrors DRF as_view)
-        view.actions = actions  # ty: ignore[unresolved-attribute]  # DRF shim: dynamic function attribute (mirrors DRF as_view)
         return view
 
     def initialize_request(self, request):
@@ -560,19 +429,6 @@ class ViewSetMixin:
         except Exception as exc:
             return _render_response(exception_to_response(exc, request))
 
-    @classmethod
-    def get_extra_actions(cls):
-        return [
-            method
-            for _, method in getmembers(cls, lambda attr: hasattr(attr, "mapping"))
-        ]
-
-
-class ViewSet(ViewSetMixin, APIView):
-    """A viewset with no default actions (matches DRF ``ViewSet``)."""
-
-    pass
-
 
 class GenericViewSet(ViewSetMixin, APIView):
     """Generic viewset: object/queryset/serializer/pagination plumbing.
@@ -585,62 +441,8 @@ class GenericViewSet(ViewSetMixin, APIView):
     lookup_url_kwarg = None
     lookup_value_regex = "[^/]+"
 
-    serializer_class = None
-    queryset = None
-
     pagination_class = None
     _paginator = None
-
-    # -- queryset / object ------------------------------------------------
-    def get_queryset(self):
-        return self.queryset
-
-    def filter_queryset(self, queryset):
-        return queryset
-
-    def get_object(self):
-        """Django-ORM-style object lookup for the ORM-backed (auth) viewsets.
-
-        Filters ``get_queryset()`` by ``{lookup_field: kwargs[lookup_url_kwarg]}``
-        and raises ``Http404`` on ``DoesNotExist`` (mirrors DRF's
-        ``get_object_or_404``), then runs object-level permission checks.
-        Overridable — the API ``GenericAPIBackedViewSet`` replaces it with an SDK
-        proto-direct lookup.
-        """
-        queryset = self.filter_queryset(self.get_queryset())
-        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
-        lookup_value = self.kwargs[lookup_url_kwarg]
-        try:
-            obj = queryset.get(**{self.lookup_field: lookup_value})
-        except (
-            ObjectDoesNotExist,
-            ValueError,
-            TypeError,
-            DjangoValidationError,
-        ) as err:
-            raise Http404(
-                f"No {getattr(queryset, 'model', type(self)).__name__} matches "
-                "the given query."
-            ) from err
-        self.check_object_permissions(self.request, obj)
-        return obj
-
-    # -- serializer -------------------------------------------------------
-    def get_serializer_class(self):
-        assert self.serializer_class is not None, (
-            f"'{self.__class__.__name__}' should either include a "
-            "`serializer_class` attribute, or override the "
-            "`get_serializer_class()` method."
-        )
-        return self.serializer_class
-
-    def get_serializer_context(self):
-        return {"request": self.request, "view": self}
-
-    def get_serializer(self, *args, **kwargs):
-        serializer_class = self.get_serializer_class()
-        kwargs.setdefault("context", self.get_serializer_context())
-        return serializer_class(*args, **kwargs)
 
     # -- pagination -------------------------------------------------------
     @property
@@ -661,53 +463,33 @@ class GenericViewSet(ViewSetMixin, APIView):
         return self.paginator.get_paginated_response(data)
 
 
-# -- model mixins (DRF default list/retrieve/create/update/destroy) -------
+# -- model action mixins --------------------------------------------------
 
 
-# These mixins are always composed with GenericViewSet, which supplies
-# filter_queryset/get_queryset/paginate_queryset/get_serializer/
-# get_paginated_response/get_object. ty analyzes each mixin standalone, so those
-# attribute accesses read as unresolved here even though they resolve at runtime.
+# Marker mixins declaring which default actions a viewset exposes so route()
+# routes them. The portal's viewsets always implement each action directly
+# (rendering protos / WithAccess envelopes via web.Response + ProtoJSONRenderer),
+# never through a DRF serializer, so the bodies here are abstract. The one
+# concrete default is DestroyModelMixin (below), which delegates to
+# perform_destroy().
 class ListModelMixin:
     def list(self, request, *args, **kwargs):
-        queryset = self.filter_queryset(self.get_queryset())  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
-        page = self.paginate_queryset(queryset)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
-            return self.get_paginated_response(serializer.data)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
-        serializer = self.get_serializer(queryset, many=True)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
-        return Response(serializer.data)
+        raise NotImplementedError(f"{type(self).__name__} must implement list()")
 
 
 class RetrieveModelMixin:
     def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
-        serializer = self.get_serializer(instance)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
-        return Response(serializer.data)
+        raise NotImplementedError(f"{type(self).__name__} must implement retrieve()")
 
 
 class CreateModelMixin:
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    def perform_create(self, serializer):
-        serializer.save()
+        raise NotImplementedError(f"{type(self).__name__} must implement create()")
 
 
 class UpdateModelMixin:
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)  # ty: ignore[unresolved-attribute]  # provided by GenericViewSet at composition
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(serializer.data)
-
-    def perform_update(self, serializer):
-        serializer.save()
+        raise NotImplementedError(f"{type(self).__name__} must implement update()")
 
     def partial_update(self, request, *args, **kwargs):
         kwargs["partial"] = True
@@ -724,28 +506,6 @@ class DestroyModelMixin:
         instance.delete()
 
 
-# -- composed viewsets (DRF ModelViewSet / ReadOnlyModelViewSet) ----------
-
-
-class ModelViewSet(
-    CreateModelMixin,
-    RetrieveModelMixin,
-    UpdateModelMixin,
-    DestroyModelMixin,
-    ListModelMixin,
-    GenericViewSet,
-):
-    """All CRUD actions (matches DRF ``ModelViewSet``)."""
-
-    pass
-
-
-class ReadOnlyModelViewSet(RetrieveModelMixin, ListModelMixin, GenericViewSet):
-    """``retrieve()`` + ``list()`` only (matches DRF ``ReadOnlyModelViewSet``)."""
-
-    pass
-
-
 # Namespace object so callers can write ``from . import web`` then ``web.mixins``
 # (mirroring ``from rest_framework import mixins``).
 class _Mixins:
@@ -759,30 +519,17 @@ class _Mixins:
 mixins = _Mixins()
 
 
-# Namespace object so callers can write ``web.viewsets.ModelViewSet`` etc.
-# (mirroring ``from rest_framework import viewsets``).
-class _Viewsets:
-    ViewSet = ViewSet
-    GenericViewSet = GenericViewSet
-    ModelViewSet = ModelViewSet
-    ReadOnlyModelViewSet = ReadOnlyModelViewSet
-
-
-viewsets = _Viewsets()
-
-
 # ---------------------------------------------------------------------------
 # @action / @api_view decorators
 # ---------------------------------------------------------------------------
 
 
-def action(detail=False, methods=None, url_path=None, url_name=None, **kwargs):
+def action(detail=False, methods=None, url_path=None, url_name=None):
     """Mark a viewset method as a routable extra action.
 
     Records ``mapping`` (http-method → method-name), ``detail``, ``url_path``
-    (default = func name), ``url_name`` (default = func name with ``_``→``-``)
-    and preserves extra kwargs (``serializer_class``/``renderer_classes``) as
-    attributes, so :func:`route` can route to it (mirrors ``rest_framework``'s
+    (default = func name) and ``url_name`` (default = func name with
+    ``_``→``-``), so :func:`route` can route to it (mirrors ``rest_framework``'s
     ``@action``).
     """
     methods = ["get"] if methods is None else methods
@@ -793,7 +540,6 @@ def action(detail=False, methods=None, url_path=None, url_name=None, **kwargs):
         func.detail = detail
         func.url_path = url_path if url_path else func.__name__
         func.url_name = url_name if url_name else func.__name__.replace("_", "-")
-        func.kwargs = kwargs
         return func
 
     return decorator
@@ -825,7 +571,6 @@ def api_view(http_method_names=None):
         )
         WrappedAPIView.__name__ = func.__name__
         WrappedAPIView.__doc__ = func.__doc__
-        WrappedAPIView.func = staticmethod(func)  # ty: ignore[unresolved-attribute]  # dynamic class attribute (mirrors DRF @api_view)
         return WrappedAPIView.as_view()
 
     return decorator
@@ -919,22 +664,10 @@ class LimitOffsetPagination:
         return replace_query_param(url, self.offset_query_param, offset)
 
 
-# Namespace object so callers can write ``web.pagination.LimitOffsetPagination``
-# (mirroring ``from rest_framework import pagination``).
-class _Pagination:
-    LimitOffsetPagination = LimitOffsetPagination
-
-
-pagination = _Pagination()
-
-
 # Namespace object so callers can write ``web.permissions.BasePermission`` etc.
 # (mirroring ``from rest_framework import permissions``).
 class _Permissions:
     BasePermission = BasePermission
-    IsAuthenticated = IsAuthenticated
-    AllowAny = AllowAny
-    SAFE_METHODS = SAFE_METHODS
 
 
 permissions = _Permissions()
@@ -989,7 +722,7 @@ def _extra_actions(viewset):
     return [m for _, m in getmembers(viewset, lambda attr: hasattr(attr, "mapping"))]
 
 
-def route(prefix, viewset, basename, lookup_field=None):
+def route(prefix, viewset, basename):
     """Reproduce DRF ``DefaultRouter`` output for ``viewset`` (no ``.json``
     format-suffix variants, no api-root, no browsable API).
 
@@ -998,19 +731,7 @@ def route(prefix, viewset, basename, lookup_field=None):
     on ``detail``), each named ``{basename}-{url_name}`` (list/detail use
     ``{basename}-list``/``{basename}-detail``).
     """
-    # ``lookup_field`` override mirrors how a router could thread a custom field;
-    # by default the viewset's own ``lookup_field`` is used.
-    if lookup_field is not None:
-        # Temporary shadow so the lookup regex uses the override without mutating
-        # the viewset class.
-        original = getattr(viewset, "lookup_field", "pk")
-        viewset.lookup_field = lookup_field
-        try:
-            lookup = _get_lookup_regex(viewset)
-        finally:
-            viewset.lookup_field = original
-    else:
-        lookup = _get_lookup_regex(viewset)
+    lookup = _get_lookup_regex(viewset)
 
     extra = _extra_actions(viewset)
     detail_actions = [a for a in extra if a.detail]
